@@ -98,15 +98,15 @@ int main(int argc, char * argv[]) {
 	std::vector< std::vector< cl::CommandQueue > > * clQueues = 0;
 
 	// Allocate memory
-  std::vector< dataType > transposedData, maxS, meanS, rmsS;
+  std::vector< dataType > transposedData, maxS, meanS, varianceS;
   std::vector< dataType > foldedData, snrs;
-  cl::Buffer transposedData_d, maxS_d, meanS_d, rmsS_d;
+  cl::Buffer transposedData_d, maxS_d, meanS_d, varianceS_d;
   cl::Buffer foldedData_d, snrs_d;
   if ( dSNR ) {
     transposedData.resize(observation.getNrSamplesPerSecond() * observation.getNrPaddedDMs());
     maxS.resize(observation.getNrPaddedDMs());
     meanS.resize(observation.getNrPaddedDMs());
-    rmsS.resize(observation.getNrPaddedDMs());
+    varianceS.resize(observation.getNrPaddedDMs());
   } else {
     foldedData.resize(observation.getNrBins() * observation.getNrPeriods() * observation.getNrPaddedDMs());
     snrs.resize(observation.getNrPeriods() * observation.getNrPaddedDMs());
@@ -121,7 +121,7 @@ int main(int argc, char * argv[]) {
     }
     std::fill(maxS.begin(), maxS.end(), static_cast< dataType >(0));
     std::fill(meanS.begin(), meanS.end(), static_cast< dataType >(0));
-    std::fill(rmsS.begin(), rmsS.end(), static_cast< dataType >(0));
+    std::fill(varianceS.begin(), varianceS.end(), static_cast< dataType >(0));
   } else {
     for ( unsigned int bin = 0; bin < observation.getNrBins(); bin++ ) {
       for ( unsigned int period = 0; period < observation.getNrPeriods(); period++ ) {
@@ -184,7 +184,7 @@ int main(int argc, char * argv[]) {
           clQueues = new std::vector< std::vector< cl::CommandQueue > >();
           isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
           try {
-            initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &transposedData, &transposedData_d, &maxS, &maxS_d, &meanS, &meanS_d, &rmsS, &rmsS_d);
+            initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &transposedData, &transposedData_d, &maxS, &maxS_d, &meanS, &meanS_d, &varianceS, &varianceS_d);
           } catch ( cl::Error & err ) {
             return -1;
           }
@@ -211,7 +211,7 @@ int main(int argc, char * argv[]) {
         kernel->setArg(1, transposedData_d);
         kernel->setArg(2, maxS_d);
         kernel->setArg(3, meanS_d);
-        kernel->setArg(4, rmsS_d);
+        kernel->setArg(4, varianceS_d);
 
         try {
           // Warm-up run
@@ -349,16 +349,16 @@ int main(int argc, char * argv[]) {
 	return 0;
 }
 
-void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< dataType > * transposedData, cl::Buffer * transposedData_d, std::vector< dataType > * maxS, cl::Buffer * maxS_d, std::vector< dataType > * meanS, cl::Buffer * meanS_d, std::vector< dataType > * rmsS, cl::Buffer * rmsS_d) {
+void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< dataType > * transposedData, cl::Buffer * transposedData_d, std::vector< dataType > * maxS, cl::Buffer * maxS_d, std::vector< dataType > * meanS, cl::Buffer * meanS_d, std::vector< dataType > * varianceS, cl::Buffer * varianceS_d) {
   try {
     *transposedData_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, transposedData->size() * sizeof(dataType), 0, 0);
     *maxS_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, maxS->size() * sizeof(dataType), 0, 0);
     *meanS_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, meanS->size() * sizeof(dataType), 0, 0);
-    *rmsS_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, rmsS->size() * sizeof(dataType), 0, 0);
+    *varianceS_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, varianceS->size() * sizeof(dataType), 0, 0);
     clQueue->enqueueWriteBuffer(*transposedData_d, CL_FALSE, 0, transposedData->size() * sizeof(dataType), reinterpret_cast< void * >(transposedData->data()));
     clQueue->enqueueWriteBuffer(*maxS_d, CL_FALSE, 0, maxS->size() * sizeof(dataType), reinterpret_cast< void * >(maxS->data()));
     clQueue->enqueueWriteBuffer(*meanS_d, CL_FALSE, 0, meanS->size() * sizeof(dataType), reinterpret_cast< void * >(meanS->data()));
-    clQueue->enqueueWriteBuffer(*rmsS_d, CL_FALSE, 0, rmsS->size() * sizeof(dataType), reinterpret_cast< void * >(rmsS->data()));
+    clQueue->enqueueWriteBuffer(*varianceS_d, CL_FALSE, 0, varianceS->size() * sizeof(dataType), reinterpret_cast< void * >(varianceS->data()));
     clQueue->finish();
   } catch ( cl::Error & err ) {
     std::cerr << "OpenCL error: " << isa::utils::toString< cl_int >(err.err()) << "." << std::endl;

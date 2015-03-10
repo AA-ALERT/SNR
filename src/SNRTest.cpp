@@ -90,17 +90,17 @@ int main(int argc, char *argv[]) {
 
 	// Allocate memory
   std::vector< dataType > foldedData, snrs, snrs_c;
-  std::vector< dataType > transposedData, maxS, meanS, rmsS, maxS_c, meanS_c, rmsS_c;
+  std::vector< dataType > transposedData, maxS, meanS, varianceS, maxS_c, meanS_c, varianceS_c;
   cl::Buffer foldedData_d, snrs_d;
-  cl::Buffer transposedData_d, maxS_d, meanS_d, rmsS_d;
+  cl::Buffer transposedData_d, maxS_d, meanS_d, varianceS_d;
   if ( dSNR ) {
     transposedData.resize(observation.getNrSamplesPerSecond() * observation.getNrPaddedDMs());
     maxS.resize(observation.getNrPaddedDMs());
     meanS.resize(observation.getNrPaddedDMs());
-    rmsS.resize(observation.getNrPaddedDMs());
+    varianceS.resize(observation.getNrPaddedDMs());
     maxS_c.resize(observation.getNrPaddedDMs());
     meanS_c.resize(observation.getNrPaddedDMs());
-    rmsS_c.resize(observation.getNrPaddedDMs());
+    varianceS_c.resize(observation.getNrPaddedDMs());
   } else {
     foldedData.resize(observation.getNrBins() * observation.getNrPeriods() * observation.getNrPaddedDMs());
     snrs.resize(observation.getNrPeriods() * observation.getNrPaddedDMs());
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
       transposedData_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, transposedData.size() * sizeof(dataType), 0, 0);
       maxS_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, maxS.size() * sizeof(dataType), 0, 0);
       meanS_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, meanS.size() * sizeof(dataType), 0, 0);
-      rmsS_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, rmsS.size() * sizeof(dataType), 0, 0);
+      varianceS_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, varianceS.size() * sizeof(dataType), 0, 0);
     } else {
       foldedData_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, foldedData.size() * sizeof(dataType), 0, 0);
       snrs_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, snrs.size() * sizeof(dataType), 0, 0);
@@ -130,10 +130,10 @@ int main(int argc, char *argv[]) {
     }
     std::fill(maxS.begin(), maxS.end(), static_cast< dataType >(0));
     std::fill(meanS.begin(), meanS.end(), static_cast< dataType >(0));
-    std::fill(rmsS.begin(), rmsS.end(), static_cast< dataType >(0));
+    std::fill(varianceS.begin(), varianceS.end(), static_cast< dataType >(0));
     std::fill(maxS_c.begin(), maxS_c.end(), static_cast< dataType >(0));
     std::fill(meanS_c.begin(), meanS_c.end(), static_cast< dataType >(0));
-    std::fill(rmsS_c.begin(), rmsS_c.end(), static_cast< dataType >(0));
+    std::fill(varianceS_c.begin(), varianceS_c.end(), static_cast< dataType >(0));
   } else {
     for ( unsigned int bin = 0; bin < observation.getNrBins(); bin++ ) {
       for ( unsigned int period = 0; period < observation.getNrPeriods(); period++ ) {
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
       clQueues->at(clDeviceID)[0].enqueueWriteBuffer(transposedData_d, CL_FALSE, 0, transposedData.size() * sizeof(dataType), reinterpret_cast< void * >(transposedData.data()));
       clQueues->at(clDeviceID)[0].enqueueWriteBuffer(maxS_d, CL_FALSE, 0, maxS.size() * sizeof(dataType), reinterpret_cast< void * >(maxS.data()));
       clQueues->at(clDeviceID)[0].enqueueWriteBuffer(meanS_d, CL_FALSE, 0, meanS.size() * sizeof(dataType), reinterpret_cast< void * >(meanS.data()));
-      clQueues->at(clDeviceID)[0].enqueueWriteBuffer(rmsS_d, CL_FALSE, 0, rmsS.size() * sizeof(dataType), reinterpret_cast< void * >(rmsS.data()));
+      clQueues->at(clDeviceID)[0].enqueueWriteBuffer(varianceS_d, CL_FALSE, 0, varianceS.size() * sizeof(dataType), reinterpret_cast< void * >(varianceS.data()));
     } else {
       clQueues->at(clDeviceID)[0].enqueueWriteBuffer(foldedData_d, CL_FALSE, 0, foldedData.size() * sizeof(dataType), reinterpret_cast< void * >(foldedData.data()));
       clQueues->at(clDeviceID)[0].enqueueWriteBuffer(snrs_d, CL_FALSE, 0, snrs.size() * sizeof(dataType), reinterpret_cast< void * >(snrs.data()));
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
       kernel->setArg(1, transposedData_d);
       kernel->setArg(2, maxS_d);
       kernel->setArg(3, meanS_d);
-      kernel->setArg(4, rmsS_d);
+      kernel->setArg(4, varianceS_d);
     } else {
       if ( (observation.getNrDMs() % (fConf.getNrDMsPerBlock() * fConf.getNrDMsPerThread())) == 0 ) {
         nrThreads = observation.getNrDMs() / fConf.getNrDMsPerThread();
@@ -220,10 +220,10 @@ int main(int argc, char *argv[]) {
     
     clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
     if ( dSNR ) {
-      PulsarSearch::snrDedispersed(0, observation, transposedData, maxS_c, meanS_c, rmsS_c);
+      PulsarSearch::snrDedispersed(0, observation, transposedData, maxS_c, meanS_c, varianceS_c);
       clQueues->at(clDeviceID)[0].enqueueReadBuffer(maxS_d, CL_TRUE, 0, maxS.size() * sizeof(dataType), reinterpret_cast< void * >(maxS.data()));
       clQueues->at(clDeviceID)[0].enqueueReadBuffer(meanS_d, CL_TRUE, 0, meanS.size() * sizeof(dataType), reinterpret_cast< void * >(meanS.data()));
-      clQueues->at(clDeviceID)[0].enqueueReadBuffer(rmsS_d, CL_TRUE, 0, rmsS.size() * sizeof(dataType), reinterpret_cast< void * >(rmsS.data()));
+      clQueues->at(clDeviceID)[0].enqueueReadBuffer(varianceS_d, CL_TRUE, 0, varianceS.size() * sizeof(dataType), reinterpret_cast< void * >(varianceS.data()));
     } else {
       PulsarSearch::snrFolded(observation, foldedData, snrs_c);
       clQueues->at(clDeviceID)[0].enqueueReadBuffer(snrs_d, CL_TRUE, 0, snrs.size() * sizeof(dataType), reinterpret_cast< void * >(snrs.data()));
@@ -235,8 +235,8 @@ int main(int argc, char *argv[]) {
 
   if ( dSNR) {
     for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
-      dataType snr = (maxS[dm] - meanS[dm]) / std::sqrt(rmsS[dm]);
-      dataType snr_c = (maxS_c[dm] - meanS_c[dm]) / std::sqrt(rmsS_c[dm]);
+      dataType snr = (maxS[dm] - meanS[dm]) / std::sqrt(varianceS[dm] / (observation.getNrSamplesPerSecond() - 1));
+      dataType snr_c = (maxS_c[dm] - meanS_c[dm]) / std::sqrt(varianceS_c[dm] / (observation.getNrSamplesPerSecond() - 1));
       if ( ! isa::utils::same(snr, snr_c) ) {
         wrongSamples++;
         if ( printResults ) {
