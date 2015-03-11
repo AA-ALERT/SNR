@@ -110,11 +110,11 @@ template< typename T > void snrDedispersed(const unsigned int second, const Astr
     float variance = 0.0f;
 
     if ( second == 0 ) {
-      T value = dedispersed[dm * observation.getNrSamplesPerPaddedSecond()];
+      T value = dedispersed[dm];
       max = value;
       mean = value;
     } else {
-      T value = dedispersed[dm * observation.getNrSamplesPerPaddedSecond()];
+      T value = dedispersed[dm];
       max = maxS[dm];
       mean = meanS[dm];
       variance = varianceS[dm];
@@ -127,7 +127,7 @@ template< typename T > void snrDedispersed(const unsigned int second, const Astr
     }
 
     for ( unsigned int sample = 1; sample < observation.getNrSamplesPerSecond(); sample++ ) {
-      T value = dedispersed[(dm * observation.getNrSamplesPerPaddedSecond()) + sample];
+      T value = dedispersed[(sample * observation.getNrPaddedDMs()) + dm];
       float oldMean = mean;
 
       nrElements++;
