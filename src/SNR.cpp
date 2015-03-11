@@ -77,8 +77,8 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
     "varianceDM<%DM_NUM%> += (globalItem - oldMean) * (globalItem - meanDM<%DM_NUM%>);\n"
     "maxDM<%DM_NUM%> = fmax(maxDM<%DM_NUM%>, globalItem);\n";
   std::string storeDMTemplate = "maxS[dm<%DM_NUM%>] = maxDM<%DM_NUM%>;\n"
-    "meanS[dm<%DM_NUM%>] = meanS[dm<%DM_NUM%>];\n"
-    "varianceS[dm<%DM_NUM%>] = varianceS[dm<%DM_NUM%>];\n";
+    "meanS[dm<%DM_NUM%>] = meanDM<%DM_NUM%>;\n"
+    "varianceS[dm<%DM_NUM%>] = varianceDM<%DM_NUM%>;\n";
   // End kernel's template
 
   std::string * defDM_s = new std::string();
