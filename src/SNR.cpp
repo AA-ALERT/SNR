@@ -69,12 +69,12 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
     "maxDM<%DM_NUM%> = maxS[dm<%DM_NUM%>];\n"
     "oldMean = meanDM<%DM_NUM%>;\n"
     "meanDM<%DM_NUM%> += (globalItem - meanDM<%DM_NUM%>) / nrElements;\n"
-    "variance<%DM_NUM%> += (globalItem - oldMean) * (globalItem - mean);\n"
+    "varianceDM<%DM_NUM%> += (globalItem - oldMean) * (globalItem - meanDM<%DM_NUM%>);\n"
     "maxDM<%DM_NUM%> = fmax(maxDM<%DM_NUM%>, globalItem);\n";
   std::string computeDMTemplate = "globalItem = dedispersedData[(sample * " + isa::utils::toString< unsigned int >(observation.getNrPaddedDMs()) + ") + dm<%DM_NUM%>];\n"
     "oldMean = meanDM<%DM_NUM%>;\n"
     "meanDM<%DM_NUM%> += (globalItem - meanDM<%DM_NUM%>) / nrElements;\n"
-    "variance<%DM_NUM%> += (globalItem - oldMean) * (globalItem - mean);\n"
+    "varianceDM<%DM_NUM%> += (globalItem - oldMean) * (globalItem - mean<%DM_NUM%>);\n"
     "maxDM<%DM_NUM%> = fmax(maxDM<%DM_NUM%>, globalItem);\n";
   std::string storeDMTemplate = "maxS[dm<%DM_NUM%>] = maxDM<%DM_NUM%>;\n"
     "meanS[dm<%DM_NUM%>] = meanS[dm<%DM_NUM%>];\n"
