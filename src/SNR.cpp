@@ -45,20 +45,20 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
     "<%COMPUTE_DM_00%>"
     "} else {\n"
     + dataType + " globalItem = 0;\n"
-    + dataType + " oldMean = 0;\n"
+    "float oldMean = 0;\n"
     "<%COMPUTE_DM_X0%>"
     "}\n"
     "for ( unsigned int sample = 1; sample < " + isa::utils::toString< unsigned int >(observation.getNrSamplesPerSecond()) + "; sample++ ) {\n"
     + dataType + " globalItem = 0;\n"
-    + dataType + " oldMean = 0;\n"
+    "float oldMean = 0;\n"
     "nrElements++;\n"
     "<%COMPUTE_DM%>"
     "}\n"
     "<%STORE_DM%>"
     "}\n";
   std::string defDMTemplate = "const unsigned int dm<%DM_NUM%> = (get_group_id(0) * " + isa::utils::toString< unsigned int >(conf.getNrDMsPerBlock() * conf.getNrDMsPerThread()) + ") + get_local_id(0) + <%OFFSET%>;\n"
-    + dataType + " meanDM<%DM_NUM%> = 0;\n"
-    + dataType + " varianceDM<%DM_NUM%> = 0;\n"
+    "float meanDM<%DM_NUM%> = 0;\n"
+    "float varianceDM<%DM_NUM%> = 0;\n"
     + dataType + " maxDM<%DM_NUM%> = 0;\n";
   std::string computeDM00Template = "globalItem = dedispersedData[dm<%DM_NUM%>];\n"
     "meanDM<%DM_NUM%> = globalItem;\n"
@@ -133,7 +133,7 @@ std::string * getSNRFoldedOpenCL(const snrFoldedConf & conf, const std::string &
 
   *code = "__kernel void snrFolded(__global const " + dataType + " * const restrict foldedData, __global " + dataType + " * const restrict snrs) {\n"
     + dataType + " globalItem = 0;\n"
-    + dataType + " oldMean = 0;\n"
+    "float oldMean = 0;\n"
     "<%DEF_DM%>"
     "<%DEF_PERIOD%>"
     "<%DEF_DM_PERIOD%>"
@@ -146,8 +146,8 @@ std::string * getSNRFoldedOpenCL(const snrFoldedConf & conf, const std::string &
     "}\n";
     std::string defDMsTemplate = "const unsigned int dm<%DM_NUM%> = (get_group_id(0) * " + isa::utils::toString< unsigned int >(conf.getNrDMsPerBlock() * conf.getNrDMsPerThread()) + ") + get_local_id(0) + <%DM_OFFSET%>;\n";
   std::string defPeriodsTemplate = "const unsigned int period<%PERIOD_NUM%> = (get_group_id(1) * " + isa::utils::toString< unsigned int >(conf.getNrPeriodsPerBlock() * conf.getNrPeriodsPerThread()) + ") + get_local_id(1) + <%PERIOD_OFFSET%>;\n";
-  std::string defDMsPeriodsTemplate = dataType + " meanDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n"
-    + dataType + " varianceDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n"
+  std::string defDMsPeriodsTemplate = "float meanDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n"
+    "float varianceDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n"
     + dataType + " maxDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n";
   std::string compute0Template = "globalItem = foldedData[(period<%PERIOD_NUM%> * " + nrPaddedDMs_s + ") + dm<%DM_NUM%>];\n"
     "meanDM<%DM_NUM%>p<%PERIOD_NUM%> = globalItem;\n"
