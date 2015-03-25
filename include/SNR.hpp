@@ -30,144 +30,38 @@ public:
   snrDedispersedConf();
   ~snrDedispersedConf();
   // Get
-  unsigned int getNrDMsPerBlock() const;
-  unsigned int getNrDMsPerThread() const;
+  unsigned int getNrSamplesPerBlock() const;
+  unsigned int getNrSamplesPerThread() const;
   // Set
-  void setNrDMsPerBlock(unsigned int dms);
-  void setNrDMsPerThread(unsigned int dms);
+  void setNrSamplesPerBlock(unsigned int samples);
+  void setNrSamplesPerThread(unsigned int samples);
   // utils
   std::string print() const;
 
 private:
-  unsigned int nrDMsPerBlock;
-  unsigned int nrDMsPerThread;
+  unsigned int nrSamplesPerBlock;
+  unsigned int nrSamplesPerThread;
 };
 
-class snrFoldedConf : public snrDedispersedConf {
-public:
-  snrFoldedConf();
-  ~snrFoldedConf();
-  // Get
-  unsigned int getNrPeriodsPerBlock() const;
-  unsigned int getNrPeriodsPerThread() const;
-  // Set
-  void setNrPeriodsPerBlock(unsigned int periods);
-  void setNrPeriodsPerThread(unsigned int periods);
-  // utils
-  std::string print() const;
-
-private:
-  unsigned int nrPeriodsPerBlock;
-  unsigned int nrPeriodsPerThread;
-};
-
-// Sequential SNR
-template< typename T > void snrDedispersed(const unsigned int second, const AstroData::Observation & observation, const std::vector< T > & dedispersed, std::vector< T > & maxS, std::vector< float > & meanS, std::vector< float > & varianceS);
-template< typename T > void snrFolded(const AstroData::Observation & observation, const std::vector< T > & folded, std::vector< T > & snrs);
 // OpenCL SNR
 std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std::string & dataType, const AstroData::Observation & observation);
-std::string * getSNRFoldedOpenCL(const snrFoldedConf & conf, const std::string & dataType, const AstroData::Observation & observation);
 
 
 // Implementations
-inline unsigned int snrDedispersedConf::getNrDMsPerBlock() const {
-  return nrDMsPerBlock;
+inline unsigned int snrDedispersedConf::getNrSamplesPerBlock() const {
+  return nrSamplesPerBlock;
 }
 
-inline unsigned int snrDedispersedConf::getNrDMsPerThread() const {
-  return nrDMsPerThread;
+inline unsigned int snrDedispersedConf::getNrSamplesPerThread() const {
+  return nrSamplesPerThread;
 }
 
-inline void snrDedispersedConf::setNrDMsPerBlock(unsigned int dms) {
-  nrDMsPerBlock = dms;
+inline void snrDedispersedConf::setNrSamplesPerBlock(unsigned int samples) {
+  nrSamplesPerBlock = samples;
 }
 
-inline void snrDedispersedConf::setNrDMsPerThread(unsigned int dms) {
-  nrDMsPerThread = dms;
-}
-
-inline unsigned int snrFoldedConf::getNrPeriodsPerBlock() const {
-  return nrPeriodsPerBlock;
-}
-
-inline unsigned int snrFoldedConf::getNrPeriodsPerThread() const {
-  return nrPeriodsPerThread;
-}
-
-inline void snrFoldedConf::setNrPeriodsPerBlock(unsigned int periods) {
-  nrPeriodsPerBlock = periods;
-}
-
-inline void snrFoldedConf::setNrPeriodsPerThread(unsigned int periods) {
-  nrPeriodsPerThread = periods;
-}
-
-template< typename T > void snrDedispersed(const unsigned int second, const AstroData::Observation & observation, const std::vector< T > & dedispersed, std::vector< T > & maxS, std::vector< float > & meanS, std::vector< float > & varianceS) {
-  for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
-    unsigned int nrElements = (second * observation.getNrSamplesPerSecond()) + 1;
-    T max = 0;
-    float mean = 0.0f;
-    float variance = 0.0f;
-
-    if ( second == 0 ) {
-      T value = dedispersed[dm];
-      max = value;
-      mean = value;
-    } else {
-      T value = dedispersed[dm];
-      max = maxS[dm];
-      mean = meanS[dm];
-      variance = varianceS[dm];
-
-      mean += (value - mean) / nrElements;
-      variance += (value - meanS[dm]) * (value - mean);
-      if ( value > max ) {
-        max = value;
-      }
-    }
-
-    for ( unsigned int sample = 1; sample < observation.getNrSamplesPerSecond(); sample++ ) {
-      T value = dedispersed[(sample * observation.getNrPaddedDMs()) + dm];
-      float oldMean = mean;
-
-      nrElements++;
-      mean += (value - mean) / nrElements;
-      variance += (value - oldMean) * (value - mean);
-      if ( value > max ) {
-        max = value;
-      }
-    }
-
-    if ( max > maxS[dm] ) {
-      maxS[dm] = max;
-    }
-    meanS[dm] = mean;
-    varianceS[dm] = variance;
-  }
-}
-
-template< typename T > void snrFolded(AstroData::Observation & observation, const std::vector< T > & folded, std::vector< T > & snrs) {
-  for ( unsigned int period = 0; period < observation.getNrPeriods(); period++ ) {
-    for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
-			T max = folded[(period * observation.getNrPaddedDMs()) + dm];
-			float mean = folded[(period * observation.getNrPaddedDMs()) + dm];
-			float variance = 0.0f;
-
-			for ( unsigned int bin = 1; bin < observation.getNrBins(); bin++ ) {
-				T value = folded[(bin * observation.getNrPeriods() * observation.getNrPaddedDMs()) + (period * observation.getNrPaddedDMs()) + dm];
-        float oldMean = mean;
-
-        mean += (value - mean) / (bin + 1);
-        variance += (value - oldMean) * (value - mean);
-				if ( value > max ) {
-					max = value;
-				}
-			}
-      variance /= observation.getNrBins() - 1;
-
-			snrs[(period * observation.getNrPaddedDMs()) + dm] = (max - mean) / std::sqrt(variance);
-		}
-	}
+inline void snrDedispersedConf::setNrSamplesPerThread(unsigned int samples) {
+  nrSamplesPerThread = samples;
 }
 
 } // PulsarSearch
