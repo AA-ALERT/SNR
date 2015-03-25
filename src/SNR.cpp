@@ -20,221 +20,63 @@ snrDedispersedConf::snrDedispersedConf() {}
 
 snrDedispersedConf::~snrDedispersedConf() {}
 
-snrFoldedConf::snrFoldedConf() {}
-
-snrFoldedConf::~snrFoldedConf() {}
-
 std::string snrDedispersedConf::print() const {
-  return std::string(isa::utils::toString(nrDMsPerBlock) + " " + isa::utils::toString(nrDMsPerThread));
+  return isa::utils::toString(nrSamplesPerBlock);
 }
-
-std::string snrFoldedConf::print() const {
-  return std::string(isa::utils::toString(this->getNrDMsPerBlock()) + " " + isa::utils::toString(nrPeriodsPerBlock) + " " + isa::utils::toString(this->getNrDMsPerThread()) + " " + isa::utils::toString(nrPeriodsPerThread));
-}
-
 std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std::string & dataType, const AstroData::Observation & observation) {
   std::string * code = new std::string();
 
   // Begin kernel's template
-  *code = "__kernel void snrDedispersed(const float second, __global const " + dataType + " * const restrict dedispersedData, __global " + dataType + " * const restrict maxS, __global float * const restrict meanS, __global float * const restrict varianceS) {\n"
-    "unsigned int nrElements = (second * " + isa::utils::toString(observation.getNrSamplesPerSecond()) + ") + 1;\n"
-    "<%DEF_DM%>"
+  *code = "__kernel void snrDedispersed(__global const " + dataType + " * const restrict dedispersedData, __global " + dataType + " * const restrict snrData) {\n"
+    "unsigned int sample = get_local_id(0);\n"
+    "unsigned int dm = get_group_id(1);\n"
+    "__local float reductionCOU[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
+    "__local " + dataType + " reductionMAX[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
+    "__local float reductionMEA[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
+    "__local float reductionVAR[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
+    "float counter = 0;\n"
+    + dataType + " max = 0;\n"
+    "float variance = 0.0f;\n"
+    "float mean = 0.0f;\n"
     "\n"
-    "if ( second == 0 ) {\n"
-    + dataType + " globalItem = 0;\n"
-    "<%COMPUTE_DM_00%>"
-    "} else {\n"
-    + dataType + " globalItem = 0;\n"
-    "float oldMean = 0;\n"
-    "<%COMPUTE_DM_X0%>"
+    "// Compute phase"
+    "for ( ; sample < " + isa::utils::toString(observation.getNrSamplesPerSecond()) + "; sample += " + isa::utils::toString(conf.getNrSamplesPerBlock()) + " ) {\n"
+    + datatype + " item = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + sample];\n"
+    "counter += 1.0f;\n"
+    "float delta = item - mean;\n"
+    "max = fmax(max, item);\n"
+    "mean += delta / counter;\n"
+    "variance += delta * (item - mean);\n"
     "}\n"
-    "for ( unsigned int sample = 1; sample < " + isa::utils::toString< unsigned int >(observation.getNrSamplesPerSecond()) + "; sample++ ) {\n"
-    + dataType + " globalItem = 0;\n"
-    "float oldMean = 0;\n"
-    "nrElements++;\n"
-    "<%COMPUTE_DM%>"
+    "reductionCOU[get_local_id(0)] = counter;\n"
+    "reductionMAX[get_local_id(0)] = max;\n"
+    "reductionMEA[get_local_id(0)] = mean;\n"
+    "reductionVAR[get_local_id(0)] = variance / (counter - 1);\n"
+    "barrier(CL_LOCAL_MEM_FENCE);\n"
+    "// Reduce phase"
+    "unsigned int threshold = " + isa::utils::toString(conf.getNrSamplesPerBlock() / 2) + ";\n"
+    "for ( sample = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
+    "if ( sample < threshold ) {\n"
+    "float delta = reductionMEA[sample + threshold] - mean;\n"
+    "counter += reductionCOU[sample + threshold];\n"
+    "max = fmax(max, reductionMAX[sample + threshold]);\n"
+    "mean = ((reductionCOU[sample] * mean) + (reductionCOU[sample + threshold] * reductionMEA[sample + threshold])) / counter;\n"
+    "variance += reductionVAR[sample + threshold] + ((delta * delta) * ((reductionCOU[sample] * reductionCOU[sample + threshold]) / counter));\n"
+    "reductionCOU[get_local_id(0)] = counter;\n"
+    "reductionMAX[get_local_id(0)] = max;\n"
+    "reductionMEA[get_local_id(0)] = mean;\n"
+    "reductionVAR[get_local_id(0)] = variance / (counter - 1);\n"
     "}\n"
-    "<%STORE_DM%>"
+    "barrier(CL_LOCAL_MEM_FENCE);\n"
+    "}\n"
+    "// Store"
+    "if ( get_local_id(0) == 0 ) {\n"
+    "snrData[dm] = (max - mean) / native_sqrt(variance);\n"
+    "}\n"
     "}\n";
-  std::string defDMTemplate = "const unsigned int dm<%DM_NUM%> = (get_group_id(0) * " + isa::utils::toString< unsigned int >(conf.getNrDMsPerBlock() * conf.getNrDMsPerThread()) + ") + get_local_id(0) + <%OFFSET%>;\n"
-    "float meanDM<%DM_NUM%> = 0;\n"
-    "float varianceDM<%DM_NUM%> = 0;\n"
-    + dataType + " maxDM<%DM_NUM%> = 0;\n";
-  std::string computeDM00Template = "globalItem = dedispersedData[dm<%DM_NUM%>];\n"
-    "meanDM<%DM_NUM%> = globalItem;\n"
-    "maxDM<%DM_NUM%> = globalItem;\n";
-  std::string computeDMX0Template = "globalItem = dedispersedData[dm<%DM_NUM%>];\n"
-    "meanDM<%DM_NUM%> = meanS[dm<%DM_NUM%>];\n"
-    "varianceDM<%DM_NUM%> = varianceS[dm<%DM_NUM%>];\n"
-    "maxDM<%DM_NUM%> = maxS[dm<%DM_NUM%>];\n"
-    "oldMean = meanDM<%DM_NUM%>;\n"
-    "meanDM<%DM_NUM%> += (globalItem - meanDM<%DM_NUM%>) / nrElements;\n"
-    "varianceDM<%DM_NUM%> += (globalItem - oldMean) * (globalItem - meanDM<%DM_NUM%>);\n"
-    "maxDM<%DM_NUM%> = fmax(maxDM<%DM_NUM%>, globalItem);\n";
-  std::string computeDMTemplate = "globalItem = dedispersedData[(sample * " + isa::utils::toString< unsigned int >(observation.getNrPaddedDMs()) + ") + dm<%DM_NUM%>];\n"
-    "oldMean = meanDM<%DM_NUM%>;\n"
-    "meanDM<%DM_NUM%> += (globalItem - meanDM<%DM_NUM%>) / nrElements;\n"
-    "varianceDM<%DM_NUM%> += (globalItem - oldMean) * (globalItem - meanDM<%DM_NUM%>);\n"
-    "maxDM<%DM_NUM%> = fmax(maxDM<%DM_NUM%>, globalItem);\n";
-  std::string storeDMTemplate = "maxS[dm<%DM_NUM%>] = maxDM<%DM_NUM%>;\n"
-    "meanS[dm<%DM_NUM%>] = meanDM<%DM_NUM%>;\n"
-    "varianceS[dm<%DM_NUM%>] = varianceDM<%DM_NUM%>;\n";
   // End kernel's template
-
-  std::string * defDM_s = new std::string();
-  std::string * computeDM00_s = new std::string();
-  std::string * computeDMX0_s = new std::string();
-  std::string * computeDM_s = new std::string();
-  std::string * storeDM_s = new std::string();
-
-  for ( unsigned int dm = 0; dm < conf.getNrDMsPerThread(); dm++ ) {
-    std::string dm_s = isa::utils::toString< unsigned int >(dm);
-    std::string offset_s = isa::utils::toString< unsigned int >(dm * conf.getNrDMsPerBlock());
-    std::string * temp_s = 0;
-
-    temp_s = isa::utils::replace(&defDMTemplate, "<%DM_NUM%>", dm_s);
-    temp_s = isa::utils::replace(temp_s, "<%OFFSET%>", offset_s, true);
-    defDM_s->append(*temp_s);
-    delete temp_s;
-    temp_s = isa::utils::replace(&computeDM00Template, "<%DM_NUM%>", dm_s);
-    computeDM00_s->append(*temp_s);
-    delete temp_s;
-    temp_s = isa::utils::replace(&computeDMX0Template, "<%DM_NUM%>", dm_s);
-    computeDMX0_s->append(*temp_s);
-    delete temp_s;
-    temp_s = isa::utils::replace(&computeDMTemplate, "<%DM_NUM%>", dm_s);
-    computeDM_s->append(*temp_s);
-    delete temp_s;
-    temp_s = isa::utils::replace(&storeDMTemplate, "<%DM_NUM%>", dm_s);
-    storeDM_s->append(*temp_s);
-    delete temp_s;
-  }
-
-  code = isa::utils::replace(code, "<%DEF_DM%>", *defDM_s, true);
-  delete defDM_s;
-  code = isa::utils::replace(code, "<%COMPUTE_DM_00%>", *computeDM00_s, true);
-  delete computeDM00_s;
-  code = isa::utils::replace(code, "<%COMPUTE_DM_X0%>", *computeDMX0_s, true);
-  delete computeDMX0_s;
-  code = isa::utils::replace(code, "<%COMPUTE_DM%>", *computeDM_s, true);
-  delete computeDM_s;
-  code = isa::utils::replace(code, "<%STORE_DM%>", *storeDM_s, true);
-  delete storeDM_s;
 
   return code;
 }
-
-std::string * getSNRFoldedOpenCL(const snrFoldedConf & conf, const std::string & dataType, const AstroData::Observation & observation) {
-  std::string * code = new std::string();
-
-  // Begin kernel's template
-  std::string nrPaddedDMs_s = isa::utils::toString< unsigned int >(observation.getNrPaddedDMs());
-  std::string nrBinsInverse_s = isa::utils::toString< float >(1.0f / (observation.getNrBins() - 1));
-
-  *code = "__kernel void snrFolded(__global const " + dataType + " * const restrict foldedData, __global " + dataType + " * const restrict snrs) {\n"
-    + dataType + " globalItem = 0;\n"
-    "float oldMean = 0;\n"
-    "<%DEF_DM%>"
-    "<%DEF_PERIOD%>"
-    "<%DEF_DM_PERIOD%>"
-    "\n"
-    "<%COMPUTE0%>"
-    "for ( unsigned int bin = 1; bin < " + isa::utils::toString< unsigned int >(observation.getNrBins()) + "; bin++ ) {\n"
-    "<%COMPUTE%>"
-    "}\n"
-    "<%STORE%>"
-    "}\n";
-    std::string defDMsTemplate = "const unsigned int dm<%DM_NUM%> = (get_group_id(0) * " + isa::utils::toString< unsigned int >(conf.getNrDMsPerBlock() * conf.getNrDMsPerThread()) + ") + get_local_id(0) + <%DM_OFFSET%>;\n";
-  std::string defPeriodsTemplate = "const unsigned int period<%PERIOD_NUM%> = (get_group_id(1) * " + isa::utils::toString< unsigned int >(conf.getNrPeriodsPerBlock() * conf.getNrPeriodsPerThread()) + ") + get_local_id(1) + <%PERIOD_OFFSET%>;\n";
-  std::string defDMsPeriodsTemplate = "float meanDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n"
-    "float varianceDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n"
-    + dataType + " maxDM<%DM_NUM%>p<%PERIOD_NUM%> = 0;\n";
-  std::string compute0Template = "globalItem = foldedData[(period<%PERIOD_NUM%> * " + nrPaddedDMs_s + ") + dm<%DM_NUM%>];\n"
-    "meanDM<%DM_NUM%>p<%PERIOD_NUM%> = globalItem;\n"
-    "maxDM<%DM_NUM%>p<%PERIOD_NUM%> = globalItem;\n";
-  std::string computeTemplate = "globalItem = foldedData[(bin * " + isa::utils::toString(observation.getNrPeriods() * observation.getNrPaddedDMs()) + ") + (period<%PERIOD_NUM%> * " + nrPaddedDMs_s + ") + dm<%DM_NUM%>];\n"
-    "oldMean = meanDM<%DM_NUM%>p<%PERIOD_NUM%>;\n"
-    "meanDM<%DM_NUM%>p<%PERIOD_NUM%> += (globalItem - meanDM<%DM_NUM%>p<%PERIOD_NUM%>) / (bin + 1);\n"
-    "varianceDM<%DM_NUM%>p<%PERIOD_NUM%> += (globalItem - oldMean) * (globalItem - meanDM<%DM_NUM%>p<%PERIOD_NUM%>);\n"
-    "maxDM<%DM_NUM%>p<%PERIOD_NUM%> = fmax(maxDM<%DM_NUM%>p<%PERIOD_NUM%>, globalItem);\n";
-  std::string storeTemplate = "varianceDM<%DM_NUM%>p<%PERIOD_NUM%> *= " + nrBinsInverse_s + "f;\n"
-    "snrs[(period<%PERIOD_NUM%> * " + nrPaddedDMs_s + ") + dm<%DM_NUM%>] = (maxDM<%DM_NUM%>p<%PERIOD_NUM%> - meanDM<%DM_NUM%>p<%PERIOD_NUM%>) / native_sqrt(varianceDM<%DM_NUM%>p<%PERIOD_NUM%>);\n";
-  // End kernel's template
-
-  std::string * defDM_s = new std::string();
-  std::string * defPeriod_s = new std::string();
-  std::string * defDMPeriod_s = new std::string();
-  std::string * compute0_s = new std::string();
-  std::string * compute_s = new std::string();
-  std::string * store_s = new std::string();
-
-  for ( unsigned int dm = 0; dm < conf.getNrDMsPerThread(); dm++ ) {
-    std::string dm_s = isa::utils::toString< unsigned int >(dm);
-    std::string * temp_s = 0;
-
-    temp_s = isa::utils::replace(&defDMsTemplate, "<%DM_NUM%>", dm_s);
-    if ( dm == 0 ) {
-      std::string empty_s;
-      temp_s = isa::utils::replace(temp_s, " + <%DM_OFFSET%>", empty_s, true);
-    } else {
-      std::string offset_s = isa::utils::toString(dm * conf.getNrDMsPerBlock());
-      temp_s = isa::utils::replace(temp_s, "<%DM_OFFSET%>", offset_s, true);
-    }
-    defDM_s->append(*temp_s);
-    delete temp_s;
-  }
-  for ( unsigned int period = 0; period < conf.getNrPeriodsPerThread(); period++ ) {
-    std::string period_s = isa::utils::toString< unsigned int >(period);
-    std::string * temp_s = 0;
-
-    temp_s = isa::utils::replace(&defPeriodsTemplate, "<%PERIOD_NUM%>", period_s);
-    if ( period == 0 ) {
-      std::string empty_s;
-      temp_s = isa::utils::replace(temp_s, " + <%PERIOD_OFFSET%>", empty_s, true);
-    } else {
-      std::string offset_s = isa::utils::toString(period * conf.getNrPeriodsPerBlock());
-      temp_s = isa::utils::replace(temp_s, "<%PERIOD_OFFSET%>", offset_s, true);
-    }
-    defPeriod_s->append(*temp_s);
-    delete temp_s;
-
-    for ( unsigned int dm = 0; dm < conf.getNrDMsPerThread(); dm++ ) {
-      std::string dm_s = isa::utils::toString< unsigned int >(dm);
-
-      temp_s = isa::utils::replace(&defDMsPeriodsTemplate, "<%DM_NUM%>", dm_s);
-      temp_s = isa::utils::replace(temp_s, "<%PERIOD_NUM%>", period_s, true);
-      defDMPeriod_s->append(*temp_s);
-      delete temp_s;
-      temp_s = isa::utils::replace(&compute0Template, "<%DM_NUM%>", dm_s);
-      temp_s = isa::utils::replace(temp_s, "<%PERIOD_NUM%>", period_s, true);
-      compute0_s->append(*temp_s);
-      delete temp_s;
-      temp_s = isa::utils::replace(&computeTemplate, "<%DM_NUM%>", dm_s);
-      temp_s = isa::utils::replace(temp_s, "<%PERIOD_NUM%>", period_s, true);
-      compute_s->append(*temp_s);
-      delete temp_s;
-      temp_s = isa::utils::replace(&storeTemplate, "<%DM_NUM%>", dm_s);
-      temp_s = isa::utils::replace(temp_s, "<%PERIOD_NUM%>", period_s, true);
-      store_s->append(*temp_s);
-      delete temp_s;
-    }
-  }
-
-  code = isa::utils::replace(code, "<%DEF_DM%>", *defDM_s, true);
-  delete defDM_s;
-  code = isa::utils::replace(code, "<%DEF_PERIOD%>", *defPeriod_s, true);
-  delete defPeriod_s;
-  code = isa::utils::replace(code, "<%DEF_DM_PERIOD%>", *defDMPeriod_s, true);
-  delete defDMPeriod_s;
-  code = isa::utils::replace(code, "<%COMPUTE0%>", *compute0_s, true);
-  delete compute0_s;
-  code = isa::utils::replace(code, "<%COMPUTE%>", *compute_s, true);
-  delete compute_s;
-  code = isa::utils::replace(code, "<%STORE%>", *store_s, true);
-  delete store_s;
-
-  return code;
-}
-
 } // PulsarSearch
 
