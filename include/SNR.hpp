@@ -31,16 +31,13 @@ public:
   ~snrDedispersedConf();
   // Get
   unsigned int getNrSamplesPerBlock() const;
-  unsigned int getNrSamplesPerThread() const;
   // Set
   void setNrSamplesPerBlock(unsigned int samples);
-  void setNrSamplesPerThread(unsigned int samples);
   // utils
   std::string print() const;
 
 private:
   unsigned int nrSamplesPerBlock;
-  unsigned int nrSamplesPerThread;
 };
 
 // OpenCL SNR
@@ -52,16 +49,8 @@ inline unsigned int snrDedispersedConf::getNrSamplesPerBlock() const {
   return nrSamplesPerBlock;
 }
 
-inline unsigned int snrDedispersedConf::getNrSamplesPerThread() const {
-  return nrSamplesPerThread;
-}
-
 inline void snrDedispersedConf::setNrSamplesPerBlock(unsigned int samples) {
   nrSamplesPerBlock = samples;
-}
-
-inline void snrDedispersedConf::setNrSamplesPerThread(unsigned int samples) {
-  nrSamplesPerThread = samples;
 }
 
 } // PulsarSearch
