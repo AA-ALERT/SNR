@@ -41,7 +41,7 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
     "\n"
     "// Compute phase"
     "for ( ; sample < " + isa::utils::toString(observation.getNrSamplesPerSecond()) + "; sample += " + isa::utils::toString(conf.getNrSamplesPerBlock()) + " ) {\n"
-    + datatype + " item = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + sample];\n"
+    + dataType + " item = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + sample];\n"
     "counter += 1.0f;\n"
     "float delta = item - mean;\n"
     "max = fmax(max, item);\n"
