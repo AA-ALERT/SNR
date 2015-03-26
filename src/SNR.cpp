@@ -26,6 +26,7 @@ std::string snrDedispersedConf::print() const {
 std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std::string & dataType, const AstroData::Observation & observation) {
   std::string * code = new std::string();
 
+  // TODO: the implementation could be much more optimized, but it is not the time yet.
   // Begin kernel's template
   *code = "__kernel void snrDedispersed(__global const " + dataType + " * const restrict dedispersedData, __global float * const restrict snrData) {\n"
     "unsigned int sample = get_local_id(0);\n"
