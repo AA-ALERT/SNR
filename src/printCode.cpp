@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     isa::utils::ArgumentList args(argc, argv);
     typeName = args.getSwitchArgument< std::string >("-type");
     observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
-    dConf.setNrDMsPerBlock(args.getSwitchArgument< unsigned int >("-db"));
+    dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-db"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
 	} catch  ( isa::utils::SwitchNotFound &err ) {
