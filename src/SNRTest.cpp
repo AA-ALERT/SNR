@@ -123,7 +123,7 @@ int main(int argc, char *argv[]) {
     local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
 
     kernel->setArg(0, dedispersedData_d);
-    kernel->setArg(2, snrData_d);
+    kernel->setArg(1, snrData_d);
     
     clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
     clQueues->at(clDeviceID)[0].enqueueReadBuffer(snrData_d, CL_TRUE, 0, snrData.size() * sizeof(float), reinterpret_cast< void * >(snrData.data()));
