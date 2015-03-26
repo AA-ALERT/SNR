@@ -27,7 +27,7 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
   std::string * code = new std::string();
 
   // Begin kernel's template
-  *code = "__kernel void snrDedispersed(__global const " + dataType + " * const restrict dedispersedData, __global " + dataType + " * const restrict snrData) {\n"
+  *code = "__kernel void snrDedispersed(__global const " + dataType + " * const restrict dedispersedData, __global float * const restrict snrData) {\n"
     "unsigned int sample = get_local_id(0);\n"
     "unsigned int dm = get_group_id(1);\n"
     "__local float reductionCOU[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
