@@ -28,53 +28,28 @@
 
 
 int main(int argc, char *argv[]) {
-  bool dSNR = false;
   std::string typeName;
 	AstroData::Observation observation;
   PulsarSearch::snrDedispersedConf dConf;
-  PulsarSearch::snrFoldedConf fConf;
 
 	try {
     isa::utils::ArgumentList args(argc, argv);
-    dSNR = args.getSwitch("-dedispersed");
-    bool fSNR = args.getSwitch("-folded");
-    if ( (dSNR && fSNR) || (!dSNR && ! fSNR) ) {
-      throw std::exception();
-    }
     typeName = args.getSwitchArgument< std::string >("-type");
     observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
-    if ( fSNR ) {
-      fConf.setNrDMsPerBlock(args.getSwitchArgument< unsigned int >("-db"));
-      fConf.setNrDMsPerThread(args.getSwitchArgument< unsigned int >("-dt"));
-      fConf.setNrPeriodsPerBlock(args.getSwitchArgument< unsigned int >("-pb"));
-      fConf.setNrPeriodsPerThread(args.getSwitchArgument< unsigned int >("-pt"));
-    } else {
-      dConf.setNrDMsPerBlock(args.getSwitchArgument< unsigned int >("-db"));
-      dConf.setNrDMsPerThread(args.getSwitchArgument< unsigned int >("-dt"));
-      observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
-    }
+    dConf.setNrDMsPerBlock(args.getSwitchArgument< unsigned int >("-db"));
+    observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
-    if ( fSNR ) {
-      observation.setPeriodRange(args.getSwitchArgument< unsigned int >("-periods"), 0, 0);
-      observation.setNrBins(args.getSwitchArgument< unsigned int >("-bins"));
-    }
 	} catch  ( isa::utils::SwitchNotFound &err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception &err ) {
-    std::cerr << "Usage: " << argv[0] << " [-dedispersed | -folded] -type ... -padding ... -db ... -dt ... -dms ..." << std::endl;
-    std::cerr << "\t -dedispersed -samples ..." << std::endl;
-    std::cerr << "\t -folded -pb ... -pt ... -periods .... -bins ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " -type ... -padding ... -db ... -dms ... -samples ..." << std::endl;
 		return 1;
 	}
 
   // Generate kernel
   std::string * code;
-  if ( dSNR ) {
-    code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
-  } else {
-    code = PulsarSearch::getSNRFoldedOpenCL(fConf, typeName, observation);
-  }
+  code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
   std::cout << *code << std::endl;
 
 	return 0;
