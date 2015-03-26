@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 		clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
     observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
-    dConf.setNrDMsPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
+    dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
 	} catch  ( isa::utils::SwitchNotFound &err ) {
@@ -114,13 +114,13 @@ int main(int argc, char *argv[]) {
   }
 
   // Run OpenCL kernel and CPU control
+  std::vector< isa::utils::Stats< dataType > > control(observation.getNrDMs());
   try {
-    std::vector< isa::utils::Stats< dataType > > control(observation.getNrDMs());
     cl::NDRange global;
     cl::NDRange local;
 
     global = cl::NDRange(dConf.getNrSamplesPerBlock(), observation.getNrDMs());
-    local = cl::NDRange(dConf.getNrDMsPerBlock(), 1);
+    local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
 
     kernel->setArg(0, dedispersedData_d);
     kernel->setArg(2, snrData_d);
@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
         std::cout << "**" << snrData[dm] << " != " << (control[dm].getMax() - control[dm].getMean()) / control[dm].getStandardDeviation() << "** ";
       }
     } else if (printResults ) {
-      std::cout << snr << " ";
+      std::cout << snrData[dm] << " ";
     }
   }
   if ( printResults ) {
