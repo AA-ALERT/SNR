@@ -60,7 +60,6 @@ int main(int argc, char * argv[]) {
     threadUnit = args.getSwitchArgument< unsigned int >("-thread_unit");
     threadInc = args.getSwitchArgument< unsigned int >("-thread_inc");
 		minThreads = args.getSwitchArgument< unsigned int >("-min_threads");
-		maxThreadsPerBlock = args.getSwitchArgument< unsigned int >("-max_threads");
 		maxItemsPerThread = args.getSwitchArgument< unsigned int >("-max_items");
 		maxColumns = args.getSwitchArgument< unsigned int >("-max_columns");
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
