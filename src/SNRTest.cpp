@@ -85,14 +85,21 @@ int main(int argc, char *argv[]) {
   for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
     for ( unsigned int sample = 0; sample < observation.getNrSamplesPerSecond(); sample++ ) {
       dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond()) + sample] = static_cast< dataType >(rand() % 10);
+      if ( printResults ) {
+        std::cout << dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond()) + sample] << " ";
+      }
+    }
+    if ( printResults ) {
+      std::cout << std::endl;
     }
   }
-  std::fill(snrData.begin(), snrData.end(), 0.0f);
+  if ( printResults ) {
+    std::cout << std::endl;
+  }
 
   // Copy data structures to device
   try {
     clQueues->at(clDeviceID)[0].enqueueWriteBuffer(dedispersedData_d, CL_FALSE, 0, dedispersedData.size() * sizeof(dataType), reinterpret_cast< void * >(dedispersedData.data()));
-    clQueues->at(clDeviceID)[0].enqueueWriteBuffer(snrData_d, CL_FALSE, 0, snrData.size() * sizeof(float), reinterpret_cast< void * >(snrData.data()));
   } catch ( cl::Error &err ) {
     std::cerr << "OpenCL error H2D transfer: " << isa::utils::toString< cl_int >(err.err()) << "." << std::endl;
     return 1;
