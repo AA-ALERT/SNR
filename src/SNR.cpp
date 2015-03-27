@@ -189,5 +189,97 @@ std::string * getSNRFoldedOpenCL(const snrFoldedConf & conf, const std::string &
   return code;
 }
 
+void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::string & snrFilename) {
+	std::string temp;
+	std::ifstream snrFile(snrFilename);
+
+	while ( ! snrFile.eof() ) {
+		unsigned int splitPoint = 0;
+
+		std::getline(snrFile, temp);
+		if ( ! std::isalpha(temp[0]) ) {
+			continue;
+		}
+		std::string deviceName;
+		unsigned int nrDMs = 0;
+    PulsarSearch::snrDedispersedConf parameters;
+
+		splitPoint = temp.find(" ");
+		deviceName = temp.substr(0, splitPoint);
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		nrDMs = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		parameters.setNrDMsPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		parameters.setNrDMsPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+
+		if ( tunedSNR.count(deviceName) == 0 ) {
+      std::map< unsigned int, PulsarSearch::snrDedispersedConf > container;
+
+			container.insert(std::make_pair(nrDMs, parameters));
+			tunedSNR.insert(std::make_pair(deviceName, container));
+		} else {
+			tunedSNR[deviceName].insert(std::make_pair(nrDMs, parameters));
+		}
+	}
+}
+
+void readTunedSNRFoldedConf(tunedSNRFoldedConf & tunedSNR, const std::string & snrFilename) {
+	std::string temp;
+	std::ifstream snrFile(snrFilename);
+
+	while ( ! snrFile.eof() ) {
+		unsigned int splitPoint = 0;
+
+		std::getline(snrFile, temp);
+		if ( ! std::isalpha(temp[0]) ) {
+			continue;
+		}
+		std::string deviceName;
+		unsigned int nrDMs = 0;
+		unsigned int nrPeriods = 0;
+    PulsarSearch::snrFoldedConf parameters;
+
+		splitPoint = temp.find(" ");
+		deviceName = temp.substr(0, splitPoint);
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		nrDMs = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		nrPeriods = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		parameters.setNrDMsPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		parameters.setNrPeriodsPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+		temp = temp.substr(splitPoint + 1);
+		splitPoint = temp.find(" ");
+		parameters.setNrDMsPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+		temp = temp.substr(splitPoint + 1);
+		parameters.setNrPeriodsPerThread(isa::utils::castToType< std::string, unsigned int >(temp));
+
+		if ( tunedSNR.count(deviceName) == 0 ) {
+      std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrFoldedConf > > externalContainer;
+      std::map< unsigned int, PulsarSearch::snrFoldedConf > internalContainer;
+
+			internalContainer.insert(std::make_pair(nrPeriods, parameters));
+			externalContainer.insert(std::make_pair(nrDMs, internalContainer));
+			tunedSNR.insert(std::make_pair(deviceName, externalContainer));
+		} else if ( tunedSNR[deviceName].count(nrDMs) == 0 ) {
+      std::map< unsigned int, PulsarSearch::snrFoldedConf > internalContainer;
+
+			internalContainer.insert(std::make_pair(nrPeriods, parameters));
+			tunedSNR[deviceName].insert(std::make_pair(nrDMs, internalContainer));
+		} else {
+			tunedSNR[deviceName][nrDMs].insert(std::make_pair(nrPeriods, parameters));
+		}
+	}
+}
+
 } // PulsarSearch
 

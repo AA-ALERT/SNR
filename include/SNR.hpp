@@ -15,6 +15,8 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <map>
+#include <fstream>
 
 #include <utils.hpp>
 #include <Observation.hpp>
@@ -61,12 +63,18 @@ private:
   unsigned int nrPeriodsPerThread;
 };
 
+typedef std::map< std::string, std::map< unsigned int, PulsarSearch::snrDedispersedConf > > tunedSNRDedispersedConf;
+typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrFoldedConf > > > tunedSNRFoldedConf;
+
 // Sequential SNR
 template< typename T > void snrDedispersed(const unsigned int second, const AstroData::Observation & observation, const std::vector< T > & dedispersed, std::vector< T > & maxS, std::vector< float > & meanS, std::vector< float > & rmsS);
 template< typename T > void snrFolded(const AstroData::Observation & observation, const std::vector< T > & folded, std::vector< T > & snrs);
 // OpenCL SNR
 std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std::string & dataType, const AstroData::Observation & observation);
 std::string * getSNRFoldedOpenCL(const snrFoldedConf & conf, const std::string & dataType, const AstroData::Observation & observation);
+// Read configuration files
+void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::string & snrFilename);
+void readTunedSNRFoldedConf(tunedSNRFoldedConf & tunedSNR, const std::string & snrFilename);
 
 
 // Implementations
