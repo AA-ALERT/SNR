@@ -100,10 +100,7 @@ void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::
     nrDMs = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
     temp = temp.substr(splitPoint + 1);
     splitPoint = temp.find(" ");
-    parameters.setNrDMsPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
-    temp = temp.substr(splitPoint + 1);
-    splitPoint = temp.find(" ");
-    parameters.setNrDMsPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    parameters.setNrSamplesPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
     if ( tunedSNR.count(deviceName) == 0 ) {
       std::map< unsigned int, PulsarSearch::snrDedispersedConf > container;
       container.insert(std::make_pair(nrDMs, parameters));
