@@ -15,6 +15,8 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <map>
+#include <fstream>
 
 #include <utils.hpp>
 #include <Observation.hpp>
@@ -40,8 +42,12 @@ private:
   unsigned int nrSamplesPerBlock;
 };
 
+typedef std::map< std::string, std::map< unsigned int, PulsarSearch::snrDedispersedConf > > tunedSNRDedispersedConf;
+
 // OpenCL SNR
 std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std::string & dataType, const AstroData::Observation & observation);
+// Read configuration files
+void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::string & snrFilename);
 
 
 // Implementations

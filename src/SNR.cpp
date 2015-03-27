@@ -80,5 +80,39 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
 
   return code;
 }
+
+void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::string & snrFilename) {
+  std::string temp;
+  std::ifstream snrFile(snrFilename);
+  while ( ! snrFile.eof() ) {
+    unsigned int splitPoint = 0;
+    std::getline(snrFile, temp);
+    if ( ! std::isalpha(temp[0]) ) {
+      continue;
+    }
+    std::string deviceName;
+    unsigned int nrDMs = 0;
+    PulsarSearch::snrDedispersedConf parameters;
+    splitPoint = temp.find(" ");
+    deviceName = temp.substr(0, splitPoint);
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    nrDMs = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    parameters.setNrDMsPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    parameters.setNrDMsPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    if ( tunedSNR.count(deviceName) == 0 ) {
+      std::map< unsigned int, PulsarSearch::snrDedispersedConf > container;
+      container.insert(std::make_pair(nrDMs, parameters));
+      tunedSNR.insert(std::make_pair(deviceName, container));
+    } else {
+      tunedSNR[deviceName].insert(std::make_pair(nrDMs, parameters));
+    }
+  }
+}
+
 } // PulsarSearch
 
