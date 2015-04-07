@@ -136,7 +136,12 @@ int main(int argc, char * argv[]) {
     }
     delete code;
 
-    cl::NDRange global = cl::NDRange(dConf.getNrSamplesPerBlock(), observation.getNrDMs());
+    cl::NDRange global;
+    if ( observation.getNrSamplesPerSecond() % dConf.getNrSamplesPerBlock() == 0 ) {
+    global = cl::NDRange(observation.getNrSamplesPerSecond(), observation.getNrDMs());
+    } else {
+    global = cl::NDRange(observation.getNrSamplesPerPaddedSecond(), observation.getNrDMs());
+    }
     cl::NDRange local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
 
     kernel->setArg(0, dedispersedData_d);
