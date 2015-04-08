@@ -109,7 +109,7 @@ int main(int argc, char * argv[]) {
     dConf.setNrSamplesPerBlock(*samples);
 
     for ( unsigned int samplesPerThread = 1; 6 + (4 * samplesPerThread) < maxItemsPerThread; samplesPerThread++ ) {
-      if ( (observation.getNrSamplesPerPaddedSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) == 0 || (observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) == 0 ) {
+      if ( (observation.getNrSamplesPerPaddedSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 && (observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 ) {
         continue;
       }
       dConf.setNrSamplesPerThread(samplesPerThread);
