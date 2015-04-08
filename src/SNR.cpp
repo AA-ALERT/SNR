@@ -72,7 +72,7 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
   std::string defTemplate = "float counter<%NUM%> = 1.0f;\n"
     + dataType + " max<%NUM%> = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
     "float variance<%NUM%> = 0.0f;\n"
-    "float mean<%NUM%> = max;\n";
+    "float mean<%NUM%> = max<%NUM%>;\n";
   std::string computeTemplate = "item = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + (sample + <%OFFSET%>)];\n"
     "counter<%NUM%> += 1.0f;\n"
     "delta = item - mean<%NUM%>;\n"
