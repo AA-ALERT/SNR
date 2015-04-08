@@ -86,12 +86,18 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
 
   for ( unsigned int sample = 0; sample < conf.getNrSamplesPerThread(); sample++ ) {
     std::string sample_s = isa::utils::toString(sample);
+    std::string offset_s = isa::utils::toString(conf.getNrSamplesPerBlock() * sample);
     std::string * temp = 0;
 
     temp = isa::utils::replace(&defTemplate, "<%NUM%>", sample_s);
     def_s->append(*temp);
     delete temp;
     temp = isa::utils::replace(&computeTemplate, "<%NUM%>", sample_s);
+    if ( sample == 0 ) {
+      temp = isa::utils::replace(temp, " + <%OFFSET%>", "", true);
+    } else {
+      temp = isa::utils::replace(temp, "<%OFFSET%>", offset_s, true);
+    }
     compute_s->append(*temp);
     delete temp;
   }
