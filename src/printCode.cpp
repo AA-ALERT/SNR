@@ -37,13 +37,14 @@ int main(int argc, char *argv[]) {
     typeName = args.getSwitchArgument< std::string >("-type");
     observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
     dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
+    dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
-	} catch  ( isa::utils::SwitchNotFound &err ) {
+	} catch  ( isa::utils::SwitchNotFound & err ) {
     std::cerr << err.what() << std::endl;
     return 1;
-  } catch ( std::exception &err ) {
-    std::cerr << "Usage: " << argv[0] << " -type ... -padding ... -sb ... -dms ... -samples ..." << std::endl;
+  } catch ( std::exception & err ) {
+    std::cerr << "Usage: " << argv[0] << " -type ... -padding ... -sb ... -st ... -dms ... -samples ..." << std::endl;
 		return 1;
 	}
 
