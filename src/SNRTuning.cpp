@@ -100,7 +100,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	std::cout << std::fixed << std::endl;
-  std::cout << "# nrDMs nrSamples samplesPerBlock GB/s time stdDeviation COV" << std::endl << std::endl;
+  std::cout << "# nrDMs nrSamples samplesPerBlock samplesPerThread GB/s time stdDeviation COV" << std::endl << std::endl;
 
   for ( std::vector< unsigned int >::iterator samples = samplesPerBlock.begin(); samples != samplesPerBlock.end(); ++samples ) {
     if ( *samples % threadUnit != 0 ) {
