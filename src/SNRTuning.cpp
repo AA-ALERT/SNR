@@ -109,6 +109,9 @@ int main(int argc, char * argv[]) {
     dConf.setNrSamplesPerBlock(*samples);
 
     for ( unsigned int samplesPerThread = 1; 5 + (4 * samplesPerThread) < maxItemsPerThread; samplesPerThread++ ) {
+      if ( (observation.getNrSamplesPerPaddedSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) == 0 || (observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) == 0 ) {
+        continue;
+      }
       dConf.setNrSamplesPerThread(samplesPerThread);
 
       // Generate kernel
@@ -138,10 +141,10 @@ int main(int argc, char * argv[]) {
       delete code;
 
       cl::NDRange global;
-      if ( observation.getNrSamplesPerSecond() % dConf.getNrSamplesPerBlock() == 0 ) {
-      global = cl::NDRange(observation.getNrSamplesPerSecond(), observation.getNrDMs());
+      if ( observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * dConf.getNrSamplesPerThread()) == 0 ) {
+      global = cl::NDRange(observation.getNrSamplesPerSecond() / dConf.getNrSamplesPerThread(), observation.getNrDMs());
       } else {
-      global = cl::NDRange(observation.getNrSamplesPerPaddedSecond(), observation.getNrDMs());
+      global = cl::NDRange(observation.getNrSamplesPerPaddedSecond() / dConf.getNrSamplesPerThread(), observation.getNrDMs());
       }
       cl::NDRange local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
 
