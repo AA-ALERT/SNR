@@ -94,7 +94,8 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
     delete temp;
     temp = isa::utils::replace(&computeTemplate, "<%NUM%>", sample_s);
     if ( sample == 0 ) {
-      temp = isa::utils::replace(temp, " + <%OFFSET%>", "", true);
+      std::string empty_s("");
+      temp = isa::utils::replace(temp, " + <%OFFSET%>", empty_s, true);
     } else {
       temp = isa::utils::replace(temp, "<%OFFSET%>", offset_s, true);
     }
