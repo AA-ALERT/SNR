@@ -105,79 +105,81 @@ int main(int argc, char * argv[]) {
   for ( std::vector< unsigned int >::iterator samples = samplesPerBlock.begin(); samples != samplesPerBlock.end(); ++samples ) {
     if ( *samples % threadUnit != 0 ) {
       continue;
-    } else if ( 6 > maxItemsPerThread ) {
-      break;
     }
     dConf.setNrSamplesPerBlock(*samples);
 
-    // Generate kernel
-    double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(dataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(dataType)));
-    cl::Kernel * kernel;
-    isa::utils::Timer timer;
-    std::string * code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
+    for ( unsigned int samplesPerThread = 1; 5 + (4 * samplesPerThread) < maxItemsPerThread; samplesPerThread++ ) {
+      dConf.setNrSamplesPerThread(samplesPerThread);
 
-    if ( reInit ) {
-      delete clQueues;
-      clQueues = new std::vector< std::vector< cl::CommandQueue > >();
-      isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
-      try {
-        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &dedispersedData, &dedispersedData_d, &snrData_d, observation.getNrDMs() * sizeof(float));
-      } catch ( cl::Error & err ) {
-        return -1;
+      // Generate kernel
+      double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(dataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(dataType)));
+      cl::Kernel * kernel;
+      isa::utils::Timer timer;
+      std::string * code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
+
+      if ( reInit ) {
+        delete clQueues;
+        clQueues = new std::vector< std::vector< cl::CommandQueue > >();
+        isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
+        try {
+          initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &dedispersedData, &dedispersedData_d, &snrData_d, observation.getNrDMs() * sizeof(float));
+        } catch ( cl::Error & err ) {
+          return -1;
+        }
+        reInit = false;
       }
-      reInit = false;
-    }
-    try {
-      kernel = isa::OpenCL::compile("snrDedispersed", *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
-    } catch ( isa::OpenCL::OpenCLError & err ) {
-      std::cerr << err.what() << std::endl;
+      try {
+        kernel = isa::OpenCL::compile("snrDedispersed", *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+      } catch ( isa::OpenCL::OpenCLError & err ) {
+        std::cerr << err.what() << std::endl;
+        delete code;
+        break;
+      }
       delete code;
-      break;
-    }
-    delete code;
 
-    cl::NDRange global;
-    if ( observation.getNrSamplesPerSecond() % dConf.getNrSamplesPerBlock() == 0 ) {
-    global = cl::NDRange(observation.getNrSamplesPerSecond(), observation.getNrDMs());
-    } else {
-    global = cl::NDRange(observation.getNrSamplesPerPaddedSecond(), observation.getNrDMs());
-    }
-    cl::NDRange local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
+      cl::NDRange global;
+      if ( observation.getNrSamplesPerSecond() % dConf.getNrSamplesPerBlock() == 0 ) {
+      global = cl::NDRange(observation.getNrSamplesPerSecond(), observation.getNrDMs());
+      } else {
+      global = cl::NDRange(observation.getNrSamplesPerPaddedSecond(), observation.getNrDMs());
+      }
+      cl::NDRange local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
 
-    kernel->setArg(0, dedispersedData_d);
-    kernel->setArg(1, snrData_d);
+      kernel->setArg(0, dedispersedData_d);
+      kernel->setArg(1, snrData_d);
 
-    try {
-      // Warm-up run
-      clQueues->at(clDeviceID)[0].finish();
-      clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
-      event.wait();
-      // Tuning runs
-      for ( unsigned int iteration = 0; iteration < nrIterations; iteration++ ) {
-        timer.start();
+      try {
+        // Warm-up run
+        clQueues->at(clDeviceID)[0].finish();
         clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
         event.wait();
-        timer.stop();
+        // Tuning runs
+        for ( unsigned int iteration = 0; iteration < nrIterations; iteration++ ) {
+          timer.start();
+          clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
+          event.wait();
+          timer.stop();
+        }
+      } catch ( cl::Error & err ) {
+        std::cerr << "OpenCL error kernel execution (";
+        std::cerr << dConf.print();
+        std::cerr << "): " << isa::utils::toString(err.err()) << "." << std::endl;
+        delete kernel;
+        if ( err.err() == -4 || err.err() == -61 ) {
+          return -1;
+        }
+        reInit = true;
+        break;
       }
-    } catch ( cl::Error & err ) {
-      std::cerr << "OpenCL error kernel execution (";
-      std::cerr << dConf.print();
-      std::cerr << "): " << isa::utils::toString(err.err()) << "." << std::endl;
       delete kernel;
-      if ( err.err() == -4 || err.err() == -61 ) {
-        return -1;
-      }
-      reInit = true;
-      break;
-    }
-    delete kernel;
 
-    std::cout << observation.getNrDMs() << " " << observation.getNrSamplesPerSecond() << " ";
-    std::cout << dConf.print() << " ";
-    std::cout << std::setprecision(3);
-    std::cout << gbs / timer.getAverageTime() << " ";
-    std::cout << std::setprecision(6);
-    std::cout << timer.getAverageTime() << " " << timer.getStandardDeviation() << " " << timer.getCoefficientOfVariation() << std::endl;
+      std::cout << observation.getNrDMs() << " " << observation.getNrSamplesPerSecond() << " ";
+      std::cout << dConf.print() << " ";
+      std::cout << std::setprecision(3);
+      std::cout << gbs / timer.getAverageTime() << " ";
+      std::cout << std::setprecision(6);
+      std::cout << timer.getAverageTime() << " " << timer.getStandardDeviation() << " " << timer.getCoefficientOfVariation() << std::endl;
+    }
   }
 
 	std::cout << std::endl;
