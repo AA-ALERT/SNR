@@ -50,13 +50,14 @@ int main(int argc, char *argv[]) {
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
     observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
     dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
+    dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
 	} catch  ( isa::utils::SwitchNotFound &err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception &err ) {
-    std::cerr << "Usage: " << argv[0] << " [-print_code] [-print_res] -opencl_platform ... -opencl_device ... -padding ... -sb ... -dms ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [-print_code] [-print_res] -opencl_platform ... -opencl_device ... -padding ... -sb ... -st ... -dms ... -samples ..." << std::endl;
 		return 1;
 	}
 
@@ -126,7 +127,7 @@ int main(int argc, char *argv[]) {
     cl::NDRange global;
     cl::NDRange local;
 
-    global = cl::NDRange(dConf.getNrSamplesPerBlock(), observation.getNrDMs());
+    global = cl::NDRange(dConf.getNrSamplesPerBlock() / dConf.getNrSamplesPerThread(), observation.getNrDMs());
     local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
 
     kernel->setArg(0, dedispersedData_d);
