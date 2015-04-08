@@ -21,7 +21,7 @@ snrDedispersedConf::snrDedispersedConf() {}
 snrDedispersedConf::~snrDedispersedConf() {}
 
 std::string snrDedispersedConf::print() const {
-  return isa::utils::toString(nrSamplesPerBlock);
+  return isa::utils::toString(nrSamplesPerBlock) + " " + isa::utils::toString(nrSamplesPerThread);
 }
 std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std::string & dataType, const AstroData::Observation & observation) {
   std::string * code = new std::string();
@@ -101,6 +101,9 @@ void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::
     temp = temp.substr(splitPoint + 1);
     splitPoint = temp.find(" ");
     parameters.setNrSamplesPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    parameters.setNrSamplesPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
     if ( tunedSNR.count(deviceName) == 0 ) {
       std::map< unsigned int, PulsarSearch::snrDedispersedConf > container;
       container.insert(std::make_pair(nrDMs, parameters));
