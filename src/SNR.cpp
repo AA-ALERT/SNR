@@ -83,8 +83,8 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
   std::string reduceTemplate = "delta = mean<%NUM%> - mean0;\n"
     "counter0 += counter<%NUM%>;\n"
     "max0 = fmax(max0, max<%NUM%>);\n"
-    "mean0 = ((mean<%NUM%> * mean0) + (counter<%NUM%> * mean<%NUM%>)) / counter0;\n"
-    "variance0 += variance<%NUM%> + ((delta * delta) * ((counter<%NUM%> * counter<%NUM%>) / counter0));\n";
+    "mean0 = (((counter0 - counter<%NUM%>) * mean0) + (counter<%NUM%> * mean<%NUM%>)) / counter0;\n"
+    "variance0 += variance<%NUM%> + ((delta * delta) * (((counter0 - counter<%NUM%>) * counter<%NUM%>) / counter0));\n";
   // End kernel's template
 
   std::string * def_s = new std::string();
