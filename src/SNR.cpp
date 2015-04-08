@@ -28,27 +28,21 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
 
   // Begin kernel's template
   *code = "__kernel void snrDedispersed(__global const " + dataType + " * const restrict dedispersedData, __global float * const restrict snrData) {\n"
-    "unsigned int sample = get_local_id(0);\n"
     "unsigned int dm = get_group_id(1);\n"
     "__local float reductionCOU[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
     "__local " + dataType + " reductionMAX[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
     "__local float reductionMEA[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
     "__local float reductionVAR[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), observation.getPadding())) + "];\n"
-    "float counter = 1.0f;\n"
-    + dataType + " max = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + sample];\n"
-    "float variance = 0.0f;\n"
-    "float mean = max;\n"
+    "<%DEF%>"
     "\n"
     "// Compute phase\n"
-    "sample += " + isa::utils::toString(conf.getNrSamplesPerBlock()) + ";\n"
-    "for ( ; sample < " + isa::utils::toString(observation.getNrSamplesPerSecond()) + "; sample += " + isa::utils::toString(conf.getNrSamplesPerBlock()) + " ) {\n"
-    + dataType + " item = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + sample];\n"
-    "counter += 1.0f;\n"
-    "float delta = item - mean;\n"
-    "max = fmax(max, item);\n"
-    "mean += delta / counter;\n"
-    "variance += delta * (item - mean);\n"
+    "for ( unsigned int sample = get_local_id(0) + " + isa::utils::toString(conf.getNrSamplesPerBlock() * conf.getNrSamplesPerThread()) + "; sample < " + isa::utils::toString(observation.getNrSamplesPerSecond()) + "; sample += " + isa::utils::toString(conf.getNrSamplesPerBlock() * conf.getNrSamplesPerThread()) + " ) {\n"
+    + dataType + " item = 0;\n"
+    "float delta = 0.0f;\n"
+    "<%COMPUTE%>"
     "}\n"
+    "// In-thread reduce\n"
+    "// Local memory store\n"
     "reductionCOU[get_local_id(0)] = counter;\n"
     "reductionMAX[get_local_id(0)] = max;\n"
     "reductionMEA[get_local_id(0)] = mean;\n"
@@ -75,7 +69,37 @@ std::string * getSNRDedispersedOpenCL(const snrDedispersedConf & conf, const std
     "snrData[dm] = (max - mean) / native_sqrt(variance / (counter - 1));\n"
     "}\n"
     "}\n";
+  std::string defTemplate = "float counter<%NUM%> = 1.0f;\n"
+    + dataType + " max<%NUM%> = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
+    "float variance<%NUM%> = 0.0f;\n"
+    "float mean<%NUM%> = max;\n";
+  std::string computeTemplate = "item = dedispersedData[(dm * " + isa::utils::toString(observation.getNrSamplesPerPaddedSecond()) + ") + (sample + <%OFFSET%>)];\n"
+    "counter<%NUM%> += 1.0f;\n"
+    "delta = item - mean<%NUM%>;\n"
+    "max<%NUM%> = fmax(max<%NUM%>, item);\n"
+    "mean<%NUM%> += delta / counter<%NUM%>;\n"
+    "variance<%NUM%> += delta * (item - mean<%NUM%>);\n";
   // End kernel's template
+
+  std::string * def_s = new std::string();
+  std::string * compute_s = new std::string();
+
+  for ( unsigned int sample = 0; sample < conf.getNrSamplesPerThread(); sample++ ) {
+    std::string sample_s = isa::utils::toString(sample);
+    std::string * temp = 0;
+
+    temp = isa::utils::replace(&defTemplate, "<%NUM%>", sample_s);
+    def_s->append(*temp);
+    delete temp;
+    temp = isa::utils::replace(&computeTemplate, "<%NUM%>", sample_s);
+    compute_s->append(*temp);
+    delete temp;
+  }
+
+  code = isa::utils::replace(code, "<%DEF%>", *def_s, true);
+  code = isa::utils::replace(code, "<%COMPUTE%>", *compute_s, true);
+  delete def_s;
+  delete compute_s;
 
   return code;
 }
