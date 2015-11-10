@@ -21,6 +21,8 @@
 #include <limits>
 #include <ctime>
 
+#include <configuration.hpp>
+
 #include <ArgumentList.hpp>
 #include <Observation.hpp>
 #include <utils.hpp>
@@ -28,14 +30,13 @@
 
 
 int main(int argc, char *argv[]) {
-  std::string typeName;
+  unsigned int padding = 0;
 	AstroData::Observation observation;
   PulsarSearch::snrDedispersedConf dConf;
 
 	try {
     isa::utils::ArgumentList args(argc, argv);
-    typeName = args.getSwitchArgument< std::string >("-type");
-    observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
+    padding = args.getSwitchArgument< unsigned int >("-padding");
     dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
     dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
@@ -44,13 +45,13 @@ int main(int argc, char *argv[]) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception & err ) {
-    std::cerr << "Usage: " << argv[0] << " -type ... -padding ... -sb ... -st ... -dms ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " -padding ... -sb ... -st ... -dms ... -samples ..." << std::endl;
 		return 1;
 	}
 
   // Generate kernel
   std::string * code;
-  code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
+  code = PulsarSearch::getSNRDedispersedOpenCL< inputDataType >(dConf, inputDataName, observation, padding);
   std::cout << *code << std::endl;
 
 	return 0;

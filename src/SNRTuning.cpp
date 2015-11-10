@@ -21,6 +21,8 @@
 #include <limits>
 #include <algorithm>
 
+#include <configuration.hpp>
+
 #include <ArgumentList.hpp>
 #include <Observation.hpp>
 #include <InitializeOpenCL.hpp>
@@ -30,14 +32,12 @@
 #include <Timer.hpp>
 #include <Stats.hpp>
 
-typedef float dataType;
-std::string typeName("float");
 
-
-void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< dataType > * dedispersedData, cl::Buffer * dedispersedData_d, cl::Buffer * snrData_d, const unsigned int snrData_size);
+void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * dedispersedData, cl::Buffer * dedispersedData_d, cl::Buffer * snrData_d, const unsigned int snrData_size);
 
 int main(int argc, char * argv[]) {
   bool reInit = true;
+  unsigned int padding = 0;
 	unsigned int nrIterations = 0;
 	unsigned int clPlatformID = 0;
 	unsigned int clDeviceID = 0;
@@ -56,7 +56,7 @@ int main(int argc, char * argv[]) {
 		nrIterations = args.getSwitchArgument< unsigned int >("-iterations");
 		clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
-		observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
+		padding = args.getSwitchArgument< unsigned int >("-padding");
     threadUnit = args.getSwitchArgument< unsigned int >("-thread_unit");
     threadInc = args.getSwitchArgument< unsigned int >("-thread_inc");
 		minThreads = args.getSwitchArgument< unsigned int >("-min_threads");
@@ -79,22 +79,22 @@ int main(int argc, char * argv[]) {
 	std::vector< std::vector< cl::CommandQueue > > * clQueues = 0;
 
 	// Allocate memory
-  std::vector< dataType > dedispersedData;
+  std::vector< inputDataType > dedispersedData;
   cl::Buffer dedispersedData_d, snrData_d;
 
-  dedispersedData.resize(observation.getNrDMs() * observation.getNrSamplesPerPaddedSecond());
+  dedispersedData.resize(observation.getNrDMs() * observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)));
 
 	srand(time(0));
   for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
     for ( unsigned int sample = 0; sample < observation.getNrSamplesPerSecond(); sample++ ) {
-      dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond()) + sample] = static_cast< dataType >(rand() % 10);
+      dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType))) + sample] = static_cast< inputDataType >(rand() % 10);
     }
   }
 
 	// Find the parameters
 	std::vector< unsigned int > samplesPerBlock;
 	for ( unsigned int samples = minThreads; samples <= maxColumns; samples += threadInc ) {
-		if ( (observation.getNrSamplesPerPaddedSecond() % samples) == 0 || (observation.getNrSamplesPerSecond() % samples) == 0 ) {
+		if ( (observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)) % samples) == 0 || (observation.getNrSamplesPerSecond() % samples) == 0 ) {
 			samplesPerBlock.push_back(samples);
 		}
 	}
@@ -109,13 +109,13 @@ int main(int argc, char * argv[]) {
     dConf.setNrSamplesPerBlock(*samples);
 
     for ( unsigned int samplesPerThread = 1; 6 + (4 * samplesPerThread) < maxItemsPerThread; samplesPerThread++ ) {
-      if ( (observation.getNrSamplesPerPaddedSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 && (observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 ) {
+      if ( (observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)) % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 && (observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 ) {
         continue;
       }
       dConf.setNrSamplesPerThread(samplesPerThread);
 
       // Generate kernel
-      double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(dataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(dataType)));
+      double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(inputDataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(inputDataType)));
       cl::Kernel * kernel;
       isa::utils::Timer timer;
       std::string * code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
@@ -185,11 +185,11 @@ int main(int argc, char * argv[]) {
 	return 0;
 }
 
-void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< dataType > * dedispersedData, cl::Buffer * dedispersedData_d, cl::Buffer * snrData_d, const unsigned int snrData_size) {
+void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * dedispersedData, cl::Buffer * dedispersedData_d, cl::Buffer * snrData_d, const unsigned int snrData_size) {
   try {
-    *dedispersedData_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, dedispersedData->size() * sizeof(dataType), 0, 0);
+    *dedispersedData_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, dedispersedData->size() * sizeof(inputDataType), 0, 0);
     *snrData_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, snrData_size, 0, 0);
-    clQueue->enqueueWriteBuffer(*dedispersedData_d, CL_FALSE, 0, dedispersedData->size() * sizeof(dataType), reinterpret_cast< void * >(dedispersedData->data()));
+    clQueue->enqueueWriteBuffer(*dedispersedData_d, CL_FALSE, 0, dedispersedData->size() * sizeof(inputDataType), reinterpret_cast< void * >(dedispersedData->data()));
     clQueue->finish();
   } catch ( cl::Error & err ) {
     std::cerr << "OpenCL error: " << isa::utils::toString< cl_int >(err.err()) << "." << std::endl;

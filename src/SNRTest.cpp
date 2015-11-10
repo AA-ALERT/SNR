@@ -21,6 +21,8 @@
 #include <limits>
 #include <ctime>
 
+#include <configuration.hpp>
+
 #include <ArgumentList.hpp>
 #include <Observation.hpp>
 #include <InitializeOpenCL.hpp>
@@ -29,13 +31,11 @@
 #include <SNR.hpp>
 #include <Stats.hpp>
 
-typedef float dataType;
-std::string typeName("float");
-
 
 int main(int argc, char *argv[]) {
   bool printCode = false;
   bool printResults = false;
+  unsigned int padding = 0;
 	unsigned int clPlatformID = 0;
 	unsigned int clDeviceID = 0;
 	long long unsigned int wrongSamples = 0;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     printResults = args.getSwitch("-print_res");
 		clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
-    observation.setPadding(args.getSwitchArgument< unsigned int >("-padding"));
+    padding = args.getSwitchArgument< unsigned int >("-padding");
     dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
     dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
@@ -70,12 +70,12 @@ int main(int argc, char *argv[]) {
   isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, clContext, clDevices, clQueues);
 
 	// Allocate memory
-  std::vector< dataType > dedispersedData, snrData;
+  std::vector< inputDataType > dedispersedData, snrData;
   cl::Buffer dedispersedData_d, snrData_d;
-  dedispersedData.resize(observation.getNrDMs() * observation.getNrSamplesPerPaddedSecond());
-  snrData.resize(observation.getNrPaddedDMs());
+  dedispersedData.resize(observation.getNrDMs() * observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)));
+  snrData.resize(observation.getNrPaddedDMs(padding / sizeof(inputDataType)));
   try {
-    dedispersedData_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, dedispersedData.size() * sizeof(dataType), 0, 0);
+    dedispersedData_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, dedispersedData.size() * sizeof(inputDataType), 0, 0);
     snrData_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, snrData.size() * sizeof(float), 0, 0);
   } catch ( cl::Error &err ) {
     std::cerr << "OpenCL error allocating memory: " << isa::utils::toString< cl_int >(err.err()) << "." << std::endl;
@@ -85,9 +85,9 @@ int main(int argc, char *argv[]) {
 	srand(time(0));
   for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
     for ( unsigned int sample = 0; sample < observation.getNrSamplesPerSecond(); sample++ ) {
-      dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond()) + sample] = static_cast< dataType >(rand() % 10);
+      dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType))) + sample] = static_cast< inputDataType >(rand() % 10);
       if ( printResults ) {
-        std::cout << dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond()) + sample] << " ";
+        std::cout << dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType))) + sample] << " ";
       }
     }
     if ( printResults ) {
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
 
   // Copy data structures to device
   try {
-    clQueues->at(clDeviceID)[0].enqueueWriteBuffer(dedispersedData_d, CL_FALSE, 0, dedispersedData.size() * sizeof(dataType), reinterpret_cast< void * >(dedispersedData.data()));
+    clQueues->at(clDeviceID)[0].enqueueWriteBuffer(dedispersedData_d, CL_FALSE, 0, dedispersedData.size() * sizeof(inputDataType), reinterpret_cast< void * >(dedispersedData.data()));
   } catch ( cl::Error &err ) {
     std::cerr << "OpenCL error H2D transfer: " << isa::utils::toString< cl_int >(err.err()) << "." << std::endl;
     return 1;
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Run OpenCL kernel and CPU control
-  std::vector< isa::utils::Stats< dataType > > control(observation.getNrDMs());
+  std::vector< isa::utils::Stats< inputDataType > > control(observation.getNrDMs());
   try {
     cl::NDRange global;
     cl::NDRange local;
@@ -136,10 +136,10 @@ int main(int argc, char *argv[]) {
     clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
     clQueues->at(clDeviceID)[0].enqueueReadBuffer(snrData_d, CL_TRUE, 0, snrData.size() * sizeof(float), reinterpret_cast< void * >(snrData.data()));
     for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
-      control[dm] = isa::utils::Stats< dataType >();
+      control[dm] = isa::utils::Stats< inputDataType >();
 
       for ( unsigned int sample = 0; sample < observation.getNrSamplesPerSecond(); sample++ ) {
-        control[dm].addElement(dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond()) + sample]);
+        control[dm].addElement(dedispersedData[(dm * observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType))) + sample]);
       }
     }
   } catch ( cl::Error &err ) {
