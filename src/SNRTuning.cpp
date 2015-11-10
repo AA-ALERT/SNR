@@ -118,7 +118,7 @@ int main(int argc, char * argv[]) {
       double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(inputDataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(inputDataType)));
       cl::Kernel * kernel;
       isa::utils::Timer timer;
-      std::string * code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
+      std::string * code = PulsarSearch::getSNRDedispersedOpenCL< inputDataType >(dConf, inputDataName, observation, padding);
 
       if ( reInit ) {
         delete clQueues;

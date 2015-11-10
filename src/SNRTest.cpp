@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
   // Generate kernel
   cl::Kernel * kernel;
   std::string * code;
-  code = PulsarSearch::getSNRDedispersedOpenCL(dConf, typeName, observation);
+  code = PulsarSearch::getSNRDedispersedOpenCL< inputDataType >(dConf, inputDataName, observation, padding);
   if ( printCode ) {
     std::cout << *code << std::endl;
   }
