@@ -26,10 +26,10 @@
 
 namespace PulsarSearch {
 
-class snrSamplesDMsConf {
+class snrDMsSamplesConf {
 public:
-  snrSamplesDMsConf();
-  ~snrSamplesDMsConf();
+  snrDMsSamplesConf();
+  ~snrDMsSamplesConf();
   // Get
   unsigned int getNrSamplesPerBlock() const;
   unsigned int getNrSamplesPerThread() const;
@@ -44,36 +44,36 @@ private:
   unsigned int nrSamplesPerThread;
 };
 
-typedef std::map< std::string, std::map< unsigned int, PulsarSearch::snrSamplesDMsConf > > tunedSNRSamplesDMsConf;
+typedef std::map< std::string, std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > > tunedSNRDMsSamplesConf;
 
 // OpenCL SNR
-template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrSamplesDMsConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding);
+template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding);
 // Read configuration files
-void readTunedSNRSamplesDMsConf(tunedSNRSamplesDMsConf & tunedSNR, const std::string & snrFilename);
+void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename);
 
 
 // Implementations
-inline unsigned int snrSamplesDMsConf::getNrSamplesPerBlock() const {
+inline unsigned int snrDMsSamplesConf::getNrSamplesPerBlock() const {
   return nrSamplesPerBlock;
 }
 
-inline unsigned int snrSamplesDMsConf::getNrSamplesPerThread() const {
+inline unsigned int snrDMsSamplesConf::getNrSamplesPerThread() const {
   return nrSamplesPerThread;
 }
 
-inline void snrSamplesDMsConf::setNrSamplesPerBlock(unsigned int samples) {
+inline void snrDMsSamplesConf::setNrSamplesPerBlock(unsigned int samples) {
   nrSamplesPerBlock = samples;
 }
 
-inline void snrSamplesDMsConf::setNrSamplesPerThread(unsigned int samples) {
+inline void snrDMsSamplesConf::setNrSamplesPerThread(unsigned int samples) {
   nrSamplesPerThread = samples;
 }
 
-template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrSamplesDMsConf & conf, const std::string & dataType, const nrSamples, const unsigned int padding) {
+template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding) {
   std::string * code = new std::string();
 
   // Begin kernel's template
-  *code = "__kernel void snrSamplesDMs" + isa::utils::toString(nrSamples) + "(__global const " + dataType + " * const restrict dedispersedData, __global float * const restrict snrData) {\n"
+  *code = "__kernel void snrDMsSamples" + isa::utils::toString(nrSamples) + "(__global const " + dataType + " * const restrict dedispersedData, __global float * const restrict snrData) {\n"
     "unsigned int dm = get_group_id(1);\n"
     "float delta = 0.0f;\n"
     "__local float reductionCOU[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), padding / sizeof(T))) + "];\n"
