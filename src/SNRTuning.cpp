@@ -47,7 +47,7 @@ int main(int argc, char * argv[]) {
 	unsigned int maxItemsPerThread = 0;
 	unsigned int maxColumns = 0;
   AstroData::Observation observation;
-  PulsarSearch::snrDedispersedConf dConf;
+  PulsarSearch::snrDMsSamplesConf dConf;
   cl::Event event;
 
 	try {
@@ -118,7 +118,7 @@ int main(int argc, char * argv[]) {
       double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(inputDataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(inputDataType)));
       cl::Kernel * kernel;
       isa::utils::Timer timer;
-      std::string * code = PulsarSearch::getSNRDedispersedOpenCL< inputDataType >(dConf, inputDataName, observation, padding);
+      std::string * code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(dConf, inputDataName, observation.getNrSamplesPerSecond(), padding);
 
       if ( reInit ) {
         delete clQueues;
@@ -132,7 +132,7 @@ int main(int argc, char * argv[]) {
         reInit = false;
       }
       try {
-        kernel = isa::OpenCL::compile("snrDedispersed", *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+        kernel = isa::OpenCL::compile("snrDMsSamples" + isa::utils::toString(observation.getNrSamplesPerSecond()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
       } catch ( isa::OpenCL::OpenCLError & err ) {
         std::cerr << err.what() << std::endl;
         delete code;
