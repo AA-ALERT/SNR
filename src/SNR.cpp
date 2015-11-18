@@ -24,7 +24,7 @@ std::string snrDMsSamplesConf::print() const {
   return isa::utils::toString(nrSamplesPerBlock) + " " + isa::utils::toString(nrSamplesPerThread);
 }
 
-void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::string & snrFilename) {
+void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename) {
   std::string temp;
   std::ifstream snrFile(snrFilename);
   while ( ! snrFile.eof() ) {
