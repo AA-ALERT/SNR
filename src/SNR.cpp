@@ -16,11 +16,11 @@
 
 namespace PulsarSearch {
 
-snrDedispersedConf::snrDedispersedConf() {}
+snrDMsSamplesConf::snrDMsSamplesConf() {}
 
-snrDedispersedConf::~snrDedispersedConf() {}
+snrDMsSamplesConf::~snrDMsSamplesConf() {}
 
-std::string snrDedispersedConf::print() const {
+std::string snrDMsSamplesConf::print() const {
   return isa::utils::toString(nrSamplesPerBlock) + " " + isa::utils::toString(nrSamplesPerThread);
 }
 
@@ -35,7 +35,7 @@ void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::
     }
     std::string deviceName;
     unsigned int nrDMs = 0;
-    PulsarSearch::snrDedispersedConf parameters;
+    PulsarSearch::snrDMsSamplesConf parameters;
     splitPoint = temp.find(" ");
     deviceName = temp.substr(0, splitPoint);
     temp = temp.substr(splitPoint + 1);
@@ -48,7 +48,7 @@ void readTunedSNRDedispersedConf(tunedSNRDedispersedConf & tunedSNR, const std::
     splitPoint = temp.find(" ");
     parameters.setNrSamplesPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
     if ( tunedSNR.count(deviceName) == 0 ) {
-      std::map< unsigned int, PulsarSearch::snrDedispersedConf > container;
+      std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > container;
       container.insert(std::make_pair(nrDMs, parameters));
       tunedSNR.insert(std::make_pair(deviceName, container));
     } else {
