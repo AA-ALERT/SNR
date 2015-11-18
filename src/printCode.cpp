@@ -16,42 +16,36 @@
 #include <string>
 #include <vector>
 #include <exception>
-#include <fstream>
-#include <iomanip>
-#include <limits>
-#include <ctime>
 
 #include <configuration.hpp>
 
 #include <ArgumentList.hpp>
-#include <Observation.hpp>
 #include <utils.hpp>
 #include <SNR.hpp>
 
 
 int main(int argc, char *argv[]) {
   unsigned int padding = 0;
-	AstroData::Observation observation;
-  PulsarSearch::snrDedispersedConf dConf;
+  unsigned int nrSamples = 0;
+  PulsarSearch::snrDMsSamplesConf dConf;
 
 	try {
     isa::utils::ArgumentList args(argc, argv);
     padding = args.getSwitchArgument< unsigned int >("-padding");
     dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
     dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
-    observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
-		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
+    nrSamples = args.getSwitchArgument< unsigned int >("-samples");
 	} catch  ( isa::utils::SwitchNotFound & err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception & err ) {
-    std::cerr << "Usage: " << argv[0] << " -padding ... -sb ... -st ... -dms ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " -padding ... -sb ... -st ... -samples ..." << std::endl;
 		return 1;
 	}
 
   // Generate kernel
   std::string * code;
-  code = PulsarSearch::getSNRDedispersedOpenCL< inputDataType >(dConf, inputDataName, observation, padding);
+  code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(dConf, inputDataName, nrSamples, padding);
   std::cout << *code << std::endl;
 
 	return 0;
