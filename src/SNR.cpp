@@ -35,7 +35,9 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
     }
     std::string deviceName;
     unsigned int nrDMs = 0;
+    unsigned int nrSamples = 0;
     PulsarSearch::snrDMsSamplesConf parameters;
+
     splitPoint = temp.find(" ");
     deviceName = temp.substr(0, splitPoint);
     temp = temp.substr(splitPoint + 1);
@@ -43,17 +45,28 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
     nrDMs = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
     temp = temp.substr(splitPoint + 1);
     splitPoint = temp.find(" ");
+    nrSamples = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
     parameters.setNrSamplesPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
     temp = temp.substr(splitPoint + 1);
     splitPoint = temp.find(" ");
     parameters.setNrSamplesPerThread(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
-    if ( tunedSNR.count(deviceName) == 0 ) {
-      std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > container;
-      container.insert(std::make_pair(nrDMs, parameters));
-      tunedSNR.insert(std::make_pair(deviceName, container));
-    } else {
-      tunedSNR[deviceName].insert(std::make_pair(nrDMs, parameters));
-    }
+		if ( tunedSNR.count(deviceName) == 0 ) {
+      std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > > externalContainer;
+      std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > internalContainer;
+
+			internalContainer.insert(std::make_pair(nrSamples, parameters));
+			externalContainer.insert(std::make_pair(nrDMs, internalContainer));
+			tunedConf.insert(std::make_pair(deviceName, externalContainer));
+		} else if ( tunedConf[deviceName].count(nrDMs) == 0 ) {
+      std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > internalContainer;
+
+			internalContainer.insert(std::make_pair(nrSamples, parameters));
+			tunedConf[deviceName].insert(std::make_pair(nrDMs, internalContainer));
+		} else {
+			tunedConf[deviceName][nrSamples].insert(std::make_pair(nrSamples, parameters));
+		}
   }
 }
 

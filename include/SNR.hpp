@@ -46,7 +46,7 @@ private:
   unsigned int nrSamplesPerThread;
 };
 
-typedef std::map< std::string, std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > > tunedSNRDMsSamplesConf;
+typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > > > tunedSNRDMsSamplesConf;
 
 // OpenCL SNR
 template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding);
