@@ -58,14 +58,14 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
 
 			internalContainer.insert(std::make_pair(nrSamples, parameters));
 			externalContainer.insert(std::make_pair(nrDMs, internalContainer));
-			tunedConf.insert(std::make_pair(deviceName, externalContainer));
-		} else if ( tunedConf[deviceName].count(nrDMs) == 0 ) {
+			tunedSNR.insert(std::make_pair(deviceName, externalContainer));
+		} else if ( tunedSNR[deviceName].count(nrDMs) == 0 ) {
       std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > internalContainer;
 
 			internalContainer.insert(std::make_pair(nrSamples, parameters));
-			tunedConf[deviceName].insert(std::make_pair(nrDMs, internalContainer));
+			tunedSNR[deviceName].insert(std::make_pair(nrDMs, internalContainer));
 		} else {
-			tunedConf[deviceName][nrSamples].insert(std::make_pair(nrSamples, parameters));
+			tunedSNR[deviceName][nrSamples].insert(std::make_pair(nrSamples, parameters));
 		}
   }
 }
