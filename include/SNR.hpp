@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: add another dimension to the configuration: (device, DMs) -> (device, DMs, samples)
-
 #include <vector>
 #include <string>
 #include <cmath>
