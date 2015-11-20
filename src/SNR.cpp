@@ -25,19 +25,21 @@ std::string snrDMsSamplesConf::print() const {
 }
 
 void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename) {
+  unsigned int nrDMs = 0;
+  unsigned int nrSamples = 0;
   std::string temp;
-  std::ifstream snrFile(snrFilename);
+  std::string deviceName;
+  std::ifstream snrFile();
+  PulsarSearch::snrDMsSamplesConf parameters;
+
+  snrFile.open(snrFilename);
   while ( ! snrFile.eof() ) {
     unsigned int splitPoint = 0;
+
     std::getline(snrFile, temp);
     if ( ! std::isalpha(temp[0]) ) {
       continue;
     }
-    std::string deviceName;
-    unsigned int nrDMs = 0;
-    unsigned int nrSamples = 0;
-    PulsarSearch::snrDMsSamplesConf parameters;
-
     splitPoint = temp.find(" ");
     deviceName = temp.substr(0, splitPoint);
     temp = temp.substr(splitPoint + 1);
@@ -68,6 +70,7 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
 			tunedSNR[deviceName][nrSamples].insert(std::make_pair(nrSamples, parameters));
 		}
   }
+  snrFile.close();
 }
 
 } // PulsarSearch
