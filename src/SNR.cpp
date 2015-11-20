@@ -29,7 +29,7 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
   unsigned int nrSamples = 0;
   std::string temp;
   std::string deviceName;
-  std::ifstream snrFile();
+  std::ifstream snrFile;
   PulsarSearch::snrDMsSamplesConf parameters;
 
   snrFile.open(snrFilename);
