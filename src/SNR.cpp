@@ -67,7 +67,7 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
 			internalContainer.insert(std::make_pair(nrSamples, parameters));
 			tunedSNR[deviceName].insert(std::make_pair(nrDMs, internalContainer));
 		} else {
-			tunedSNR[deviceName][nrSamples].insert(std::make_pair(nrSamples, parameters));
+			tunedSNR[deviceName][nrDMs].insert(std::make_pair(nrSamples, parameters));
 		}
   }
   snrFile.close();
