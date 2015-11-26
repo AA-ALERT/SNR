@@ -185,6 +185,7 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
   // Begin kernel's template
   *code = "__kernel void snrSamplesDMs" + isa::utils::toString(observation.getNrDMs()) + "(__global const " + dataName + " * const restrict input, __global float * const restrict output) {\n"
     "unsigned int dm = (" + isa::utils::toString(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
+    "float delta = 0.0f;\n"
     "<%DEF%>"
     "\n"
     "for ( unsigned int sample = 1; sample < " + isa::utils::toString(observation.getNrSamplesPerSecond()) + "; sample++ ) {\n"
@@ -197,7 +198,7 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
     + dataName + " max<%NUM%> = input[dm + <%OFFSET%>];\n"
     "float variance<%NUM%> = 0.0f;\n"
     "float mean<%NUM%> = max<%NUM%>;\n";
-  std::string compute_sTemplate = "item = input[(sample * " + isa::utils::toString(observation.getNrPaddedDMs(padding / sizeof(T))) + "  + (dm + <%OFFSET%>)];\n"
+  std::string compute_sTemplate = "item = input[(sample * " + isa::utils::toString(observation.getNrPaddedDMs(padding / sizeof(T))) + ")  + (dm + <%OFFSET%>)];\n"
     "counter<%NUM%> += 1.0f;\n"
     "delta = item - mean<%NUM%>;\n"
     "max<%NUM%> = fmax(max<%NUM%>, item);\n"
