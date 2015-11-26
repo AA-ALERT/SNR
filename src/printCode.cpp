@@ -27,25 +27,25 @@
 int main(int argc, char *argv[]) {
   unsigned int padding = 0;
   unsigned int nrSamples = 0;
-  PulsarSearch::snrDMsSamplesConf dConf;
+  PulsarSearch::snrConf conf;
 
 	try {
     isa::utils::ArgumentList args(argc, argv);
     padding = args.getSwitchArgument< unsigned int >("-padding");
-    dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
-    dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
+    conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threads0"));
+    conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-items0"));
     nrSamples = args.getSwitchArgument< unsigned int >("-samples");
 	} catch  ( isa::utils::SwitchNotFound & err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception & err ) {
-    std::cerr << "Usage: " << argv[0] << " -padding ... -sb ... -st ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " -padding ... -threads0 ... -items0 ... -samples ..." << std::endl;
 		return 1;
 	}
 
   // Generate kernel
   std::string * code;
-  code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(dConf, inputDataName, nrSamples, padding);
+  code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, nrSamples, padding);
   std::cout << *code << std::endl;
 
 	return 0;

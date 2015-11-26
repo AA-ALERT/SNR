@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 	unsigned int clDeviceID = 0;
 	uint64_t wrongSamples = 0;
 	AstroData::Observation observation;
-  PulsarSearch::snrDMsSamplesConf dConf;
+  PulsarSearch::snrConf conf;
 
 	try {
     isa::utils::ArgumentList args(argc, argv);
@@ -49,15 +49,15 @@ int main(int argc, char *argv[]) {
 		clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
     padding = args.getSwitchArgument< unsigned int >("-padding");
-    dConf.setNrSamplesPerBlock(args.getSwitchArgument< unsigned int >("-sb"));
-    dConf.setNrSamplesPerThread(args.getSwitchArgument< unsigned int >("-st"));
+    conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threads0"));
+    conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-items0"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
 	} catch  ( isa::utils::SwitchNotFound &err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception &err ) {
-    std::cerr << "Usage: " << argv[0] << " [-print_code] [-print_res] -opencl_platform ... -opencl_device ... -padding ... -sb ... -st ... -dms ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [-print_code] [-print_res] -opencl_platform ... -opencl_device ... -padding ... -threads0 ... -items0 ... -dms ... -samples ..." << std::endl;
 		return 1;
 	}
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
   // Generate kernel
   cl::Kernel * kernel;
   std::string * code;
-  code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(dConf, inputDataName, observation.getNrSamplesPerSecond(), padding);
+  code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation.getNrSamplesPerSecond(), padding);
   if ( printCode ) {
     std::cout << *code << std::endl;
   }
@@ -127,8 +127,8 @@ int main(int argc, char *argv[]) {
     cl::NDRange global;
     cl::NDRange local;
 
-    global = cl::NDRange(dConf.getNrSamplesPerBlock(), observation.getNrDMs());
-    local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
+    global = cl::NDRange(conf.getNrThreadsD0(), observation.getNrDMs());
+    local = cl::NDRange(conf.getNrThreadsD0(), 1);
 
     kernel->setArg(0, dedispersedData_d);
     kernel->setArg(1, snrData_d);

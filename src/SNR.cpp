@@ -16,21 +16,21 @@
 
 namespace PulsarSearch {
 
-snrDMsSamplesConf::snrDMsSamplesConf() {}
+snrConf::snrConf() : nrThreadsD0(0), nrItemsD0(0) {}
 
-snrDMsSamplesConf::~snrDMsSamplesConf() {}
+snrConf::~snrConf() {}
 
-std::string snrDMsSamplesConf::print() const {
-  return isa::utils::toString(nrSamplesPerBlock) + " " + isa::utils::toString(nrSamplesPerThread);
+std::string snrConf::print() const {
+  return isa::utils::toString(nrThreadsD0) + " " + isa::utils::toString(nrItemsD0);
 }
 
-void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename) {
+void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) {
   unsigned int nrDMs = 0;
   unsigned int nrSamples = 0;
   std::string temp;
   std::string deviceName;
+  PulsarSearch::snrConf * parameters = 0;
   std::ifstream snrFile;
-  PulsarSearch::snrDMsSamplesConf parameters;
 
   snrFile.open(snrFilename);
   while ( ! snrFile.eof() ) {
@@ -40,6 +40,8 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
     if ( ! std::isalpha(temp[0]) ) {
       continue;
     }
+    parameters = new PulsarSearch::snrConf();
+
     splitPoint = temp.find(" ");
     deviceName = temp.substr(0, splitPoint);
     temp = temp.substr(splitPoint + 1);
@@ -50,24 +52,24 @@ void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::st
     nrSamples = isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint));
     temp = temp.substr(splitPoint + 1);
     splitPoint = temp.find(" ");
-    parameters.setNrSamplesPerBlock(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    parameters->setNrThreadsD0(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
     temp = temp.substr(splitPoint + 1);
-    parameters.setNrSamplesPerThread(isa::utils::castToType< std::string, unsigned int >(temp));
+    parameters->setNrItemsD0(isa::utils::castToType< std::string, unsigned int >(temp));
 
 		if ( tunedSNR.count(deviceName) == 0 ) {
-      std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > > externalContainer;
-      std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > internalContainer;
+      std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * > * externalContainer = new std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * >();
+      std::map< unsigned int, PulsarSearch::snrConf * > * internalContainer = new std::map< unsigned int, PulsarSearch::snrConf * >();
 
-			internalContainer.insert(std::make_pair(nrSamples, parameters));
-			externalContainer.insert(std::make_pair(nrDMs, internalContainer));
+			internalContainer->insert(std::make_pair(nrSamples, parameters));
+			externalContainer->insert(std::make_pair(nrDMs, internalContainer));
 			tunedSNR.insert(std::make_pair(deviceName, externalContainer));
-		} else if ( tunedSNR[deviceName].count(nrDMs) == 0 ) {
-      std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > internalContainer;
+		} else if ( tunedSNR.at(deviceName)->count(nrDMs) == 0 ) {
+      std::map< unsigned int, PulsarSearch::snrConf * > * internalContainer = new std::map< unsigned int, PulsarSearch::snrConf * >();
 
-			internalContainer.insert(std::make_pair(nrSamples, parameters));
-			tunedSNR[deviceName].insert(std::make_pair(nrDMs, internalContainer));
+			internalContainer->insert(std::make_pair(nrSamples, parameters));
+			tunedSNR.at(deviceName)->insert(std::make_pair(nrDMs, internalContainer));
 		} else {
-			tunedSNR[deviceName][nrDMs].insert(std::make_pair(nrSamples, parameters));
+			tunedSNR.at(deviceName)->at(nrDMs)->insert(std::make_pair(nrSamples, parameters));
 		}
   }
   snrFile.close();

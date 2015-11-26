@@ -26,64 +26,64 @@
 
 namespace PulsarSearch {
 
-class snrDMsSamplesConf {
+class snrConf {
 public:
-  snrDMsSamplesConf();
-  ~snrDMsSamplesConf();
+  snrConf();
+  ~snrConf();
   // Get
-  unsigned int getNrSamplesPerBlock() const;
-  unsigned int getNrSamplesPerThread() const;
+  unsigned int getNrThreadsD0() const;
+  unsigned int getNrItemsD0() const;
   // Set
-  void setNrSamplesPerBlock(unsigned int samples);
-  void setNrSamplesPerThread(unsigned int samples);
+  void setNrThreadsD0(unsigned int threads);
+  void setNrItemsD0(unsigned int items);
   // utils
   std::string print() const;
 
 private:
-  unsigned int nrSamplesPerBlock;
-  unsigned int nrSamplesPerThread;
+  unsigned int nrThreadsD0;
+  unsigned int nrItemsD0;
 };
 
-typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrDMsSamplesConf > > > tunedSNRDMsSamplesConf;
+typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * > * > tunedSNRConf;
 
 // OpenCL SNR
-template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding);
+template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding);
 // Read configuration files
-void readTunedSNRDMsSamplesConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename);
+void readTunedSNRConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename);
 
 
 // Implementations
-inline unsigned int snrDMsSamplesConf::getNrSamplesPerBlock() const {
-  return nrSamplesPerBlock;
+inline unsigned int snrConf::getNrThreadsD0() const {
+  return nrThreadsD0;
 }
 
-inline unsigned int snrDMsSamplesConf::getNrSamplesPerThread() const {
-  return nrSamplesPerThread;
+inline unsigned int snrConf::getNrItemsD0() const {
+  return nrItemsD0;
 }
 
-inline void snrDMsSamplesConf::setNrSamplesPerBlock(unsigned int samples) {
-  nrSamplesPerBlock = samples;
+inline void snrConf::setNrThreadsD0(unsigned int threads) {
+  nrThreadsD0 = threads;
 }
 
-inline void snrDMsSamplesConf::setNrSamplesPerThread(unsigned int samples) {
-  nrSamplesPerThread = samples;
+inline void snrConf::setNrItemsD0(unsigned int items) {
+  nrItemsD0 = items;
 }
 
-template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding) {
+template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding) {
   std::string * code = new std::string();
 
   // Begin kernel's template
-  *code = "__kernel void snrDMsSamples" + isa::utils::toString(nrSamples) + "(__global const " + dataType + " * const restrict dedispersedData, __global float * const restrict snrData) {\n"
+  *code = "__kernel void snrDMsSamples" + isa::utils::toString(nrSamples) + "(__global const " + dataType + " * const restrict input, __global float * const restrict output) {\n"
     "unsigned int dm = get_group_id(1);\n"
     "float delta = 0.0f;\n"
-    "__local float reductionCOU[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), padding / sizeof(T))) + "];\n"
-    "__local " + dataType + " reductionMAX[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), padding / sizeof(T))) + "];\n"
-    "__local float reductionMEA[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), padding / sizeof(T))) + "];\n"
-    "__local float reductionVAR[" + isa::utils::toString(isa::utils::pad(conf.getNrSamplesPerBlock(), padding / sizeof(T))) + "];\n"
+    "__local float reductionCOU[" + isa::utils::toString(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(T))) + "];\n"
+    "__local " + dataType + " reductionMAX[" + isa::utils::toString(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(T))) + "];\n"
+    "__local float reductionMEA[" + isa::utils::toString(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(T))) + "];\n"
+    "__local float reductionVAR[" + isa::utils::toString(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(T))) + "];\n"
     "<%DEF%>"
     "\n"
     "// Compute phase\n"
-    "for ( unsigned int sample = get_local_id(0) + " + isa::utils::toString(conf.getNrSamplesPerBlock() * conf.getNrSamplesPerThread()) + "; sample < " + isa::utils::toString(nrSamples) + "; sample += " + isa::utils::toString(conf.getNrSamplesPerBlock() * conf.getNrSamplesPerThread()) + " ) {\n"
+    "for ( unsigned int sample = get_local_id(0) + " + isa::utils::toString(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; sample < " + isa::utils::toString(nrSamples) + "; sample += " + isa::utils::toString(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
     + dataType + " item = 0;\n"
     "<%COMPUTE%>"
     "}\n"
@@ -96,7 +96,7 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesC
     "reductionVAR[get_local_id(0)] = variance0;\n"
     "barrier(CLK_LOCAL_MEM_FENCE);\n"
     "// Reduce phase\n"
-    "unsigned int threshold = " + isa::utils::toString(conf.getNrSamplesPerBlock() / 2) + ";\n"
+    "unsigned int threshold = " + isa::utils::toString(conf.getNrThreadsD0() / 2) + ";\n"
     "for ( unsigned int sample = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
     "if ( sample < threshold ) {\n"
     "delta = reductionMEA[sample + threshold] - mean0;\n"
@@ -113,14 +113,14 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesC
     "}\n"
     "// Store\n"
     "if ( get_local_id(0) == 0 ) {\n"
-    "snrData[dm] = (max0 - mean0) / native_sqrt(variance0 * " + isa::utils::toString(1.0f / (nrSamples - 1)) + "f);\n"
+    "output[dm] = (max0 - mean0) / native_sqrt(variance0 * " + isa::utils::toString(1.0f / (nrSamples - 1)) + "f);\n"
     "}\n"
     "}\n";
   std::string defTemplate = "float counter<%NUM%> = 1.0f;\n"
-    + dataType + " max<%NUM%> = dedispersedData[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
+    + dataType + " max<%NUM%> = input[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
     "float variance<%NUM%> = 0.0f;\n"
     "float mean<%NUM%> = max<%NUM%>;\n";
-  std::string computeTemplate = "item = dedispersedData[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
+  std::string computeTemplate = "item = input[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
     "counter<%NUM%> += 1.0f;\n"
     "delta = item - mean<%NUM%>;\n"
     "max<%NUM%> = fmax(max<%NUM%>, item);\n"
@@ -137,9 +137,9 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrDMsSamplesC
   std::string * compute_s = new std::string();
   std::string * reduce_s = new std::string();
 
-  for ( unsigned int sample = 0; sample < conf.getNrSamplesPerThread(); sample++ ) {
+  for ( unsigned int sample = 0; sample < conf.getNrItemsD0(); sample++ ) {
     std::string sample_s = isa::utils::toString(sample);
-    std::string offset_s = isa::utils::toString(conf.getNrSamplesPerBlock() * sample);
+    std::string offset_s = isa::utils::toString(conf.getNrThreadsD0() * sample);
     std::string * temp = 0;
 
     temp = isa::utils::replace(&defTemplate, "<%NUM%>", sample_s);

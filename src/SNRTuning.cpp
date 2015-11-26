@@ -47,7 +47,7 @@ int main(int argc, char * argv[]) {
 	unsigned int maxItemsPerThread = 0;
 	unsigned int maxColumns = 0;
   AstroData::Observation observation;
-  PulsarSearch::snrDMsSamplesConf dConf;
+  PulsarSearch::snrConf conf;
   cl::Event event;
 
 	try {
@@ -92,33 +92,33 @@ int main(int argc, char * argv[]) {
   }
 
 	// Find the parameters
-	std::vector< unsigned int > samplesPerBlock;
-	for ( unsigned int samples = minThreads; samples <= maxColumns; samples += threadInc ) {
-		if ( (observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)) % samples) == 0 || (observation.getNrSamplesPerSecond() % samples) == 0 ) {
-			samplesPerBlock.push_back(samples);
+	std::vector< unsigned int > threadsPerBlock;
+	for ( unsigned int threads = minThreads; threads <= maxColumns; threads += threadInc ) {
+		if ( (observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)) % threads) == 0 || (observation.getNrSamplesPerSecond() % threads) == 0 ) {
+			threadsPerBlock.push_back(threads);
 		}
 	}
 
 	std::cout << std::fixed << std::endl;
-  std::cout << "# nrDMs nrSamples samplesPerBlock samplesPerThread GB/s time stdDeviation COV" << std::endl << std::endl;
+  std::cout << "# nrDMs nrSamples threadsD0 itemsD0 GB/s time stdDeviation COV" << std::endl << std::endl;
 
-  for ( std::vector< unsigned int >::iterator samples = samplesPerBlock.begin(); samples != samplesPerBlock.end(); ++samples ) {
-    if ( *samples % threadUnit != 0 ) {
+  for ( std::vector< unsigned int >::iterator threads = threadsPerBlock.begin(); threads != threadsPerBlock.end(); ++threads ) {
+    if ( *threads % threadUnit != 0 ) {
       continue;
     }
-    dConf.setNrSamplesPerBlock(*samples);
+    conf.setNrThreadsD0(*threads);
 
-    for ( unsigned int samplesPerThread = 1; 6 + (4 * samplesPerThread) < maxItemsPerThread; samplesPerThread++ ) {
-      if ( (observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)) % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 && (observation.getNrSamplesPerSecond() % (dConf.getNrSamplesPerBlock() * samplesPerThread)) != 0 ) {
+    for ( unsigned int threadsPerThread = 1; 6 + (4 * threadsPerThread) < maxItemsPerThread; threadsPerThread++ ) {
+      if ( (observation.getNrSamplesPerPaddedSecond(padding / sizeof(inputDataType)) % (conf.getNrThreadsD0() * threadsPerThread)) != 0 && (observation.getNrSamplesPerSecond() % (conf.getNrThreadsD0() * threadsPerThread)) != 0 ) {
         continue;
       }
-      dConf.setNrSamplesPerThread(samplesPerThread);
+      conf.setNrItemsD0(threadsPerThread);
 
       // Generate kernel
       double gbs = isa::utils::giga((static_cast< long long unsigned int >(observation.getNrDMs()) * observation.getNrSamplesPerSecond() * sizeof(inputDataType)) + (static_cast< long long unsigned int >(observation.getNrDMs()) * sizeof(inputDataType)));
       cl::Kernel * kernel;
       isa::utils::Timer timer;
-      std::string * code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(dConf, inputDataName, observation.getNrSamplesPerSecond(), padding);
+      std::string * code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation.getNrSamplesPerSecond(), padding);
 
       if ( reInit ) {
         delete clQueues;
@@ -140,8 +140,8 @@ int main(int argc, char * argv[]) {
       }
       delete code;
 
-      cl::NDRange global = cl::NDRange(dConf.getNrSamplesPerBlock(), observation.getNrDMs());
-      cl::NDRange local = cl::NDRange(dConf.getNrSamplesPerBlock(), 1);
+      cl::NDRange global = cl::NDRange(conf.getNrThreadsD0(), observation.getNrDMs());
+      cl::NDRange local = cl::NDRange(conf.getNrThreadsD0(), 1);
 
       kernel->setArg(0, dedispersedData_d);
       kernel->setArg(1, snrData_d);
@@ -160,7 +160,7 @@ int main(int argc, char * argv[]) {
         }
       } catch ( cl::Error & err ) {
         std::cerr << "OpenCL error kernel execution (";
-        std::cerr << dConf.print();
+        std::cerr << conf.print();
         std::cerr << "): " << isa::utils::toString(err.err()) << "." << std::endl;
         delete kernel;
         if ( err.err() == -4 || err.err() == -61 ) {
@@ -172,7 +172,7 @@ int main(int argc, char * argv[]) {
       delete kernel;
 
       std::cout << observation.getNrDMs() << " " << observation.getNrSamplesPerSecond() << " ";
-      std::cout << dConf.print() << " ";
+      std::cout << conf.print() << " ";
       std::cout << std::setprecision(3);
       std::cout << gbs / timer.getAverageTime() << " ";
       std::cout << std::setprecision(6);
