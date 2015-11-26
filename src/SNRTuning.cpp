@@ -112,7 +112,7 @@ int main(int argc, char * argv[]) {
     if ( threads % vectorWidth != 0 ) {
       continue;
     }
-    conf.setNrThreadsD0(*threads);
+    conf.setNrThreadsD0(threads);
 
     for ( unsigned int itemsPerThread = 1; itemsPerThread < maxItems; itemsPerThread++ ) {
       if ( DMsSamples ) {
