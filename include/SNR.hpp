@@ -19,7 +19,7 @@
 #include <fstream>
 
 #include <utils.hpp>
-
+#include <Observation.hpp>
 
 #ifndef SNR_HPP
 #define SNR_HPP
