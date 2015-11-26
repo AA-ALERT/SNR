@@ -38,7 +38,7 @@ void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue
 int main(int argc, char * argv[]) {
   bool reInit = true;
   bool DMsSamples = false;
-  samplesDMs = false;
+  bool samplesDMs = false;
   unsigned int padding = 0;
 	unsigned int nrIterations = 0;
 	unsigned int clPlatformID = 0;
