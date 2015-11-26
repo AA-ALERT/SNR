@@ -205,9 +205,9 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
     "variance<%NUM%> += delta * (item - mean<%NUM%>);\n";
   std::string store_sTemplate;
   if ( dataName == "double" ) {
-    store_sTemplate = "output[dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + isa::utils::toString(1.0 / (nrSamples - 1)) + ");\n";
+    store_sTemplate = "output[dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + isa::utils::toString(1.0 / (observation.getNrSamplesPerSecond() - 1)) + ");\n";
   } else if ( dataName == "float" ) {
-    store_sTemplate = "output[dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + isa::utils::toString(1.0f / (nrSamples - 1)) + "f);\n";
+    store_sTemplate = "output[dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + isa::utils::toString(1.0f / (observation.getNrSamplesPerSecond() - 1)) + "f);\n";
   } else {
     store_sTemplate = "output[dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> / " + isa::utils::toString(observation.getNrSamplesPerSecond() - 1) + "f);\n";
   }
