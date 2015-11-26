@@ -25,28 +25,42 @@
 
 
 int main(int argc, char *argv[]) {
+  bool DMsSamples = false;
+  bool samplesDMs = false;
   unsigned int padding = 0;
-  unsigned int nrSamples = 0;
+  AstroData::Observation observation;
   PulsarSearch::snrConf conf;
 
 	try {
     isa::utils::ArgumentList args(argc, argv);
+    DMsSamples = args.getSwitch("-dms_samples");
+    samplesDMs = args.getSwitch("-samples_dms");
+    if ( samplesDMs  ) {
+      observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0f, 0.0f);
+    }
     padding = args.getSwitchArgument< unsigned int >("-padding");
     conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threads0"));
     conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-items0"));
-    nrSamples = args.getSwitchArgument< unsigned int >("-samples");
+    observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 	} catch  ( isa::utils::SwitchNotFound & err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception & err ) {
-    std::cerr << "Usage: " << argv[0] << " -padding ... -threads0 ... -items0 ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [-dms_samples] [-samples_dms] -padding ... -threads0 ... -items0 ... -samples ..." << std::endl;
+    std::cerr << "\t -samples_dms -dms ..." << std::endl;
 		return 1;
 	}
 
   // Generate kernel
   std::string * code;
-  code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, nrSamples, padding);
-  std::cout << *code << std::endl;
+  if ( DMsSamples ) {
+    code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation.getNrSamplesPerSecond(), padding);
+    std::cout << *code << std::endl;
+  }
+  if ( samplesDMs ) {
+    code = PulsarSearch::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, padding);
+    std::cout << *code << std::endl;
+  }
 
 	return 0;
 }
