@@ -49,7 +49,7 @@ typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, P
 // OpenCL SNR
 template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf, const std::string & dataType, const unsigned int nrSamples, const unsigned int padding);
 // Read configuration files
-void readTunedSNRConf(tunedSNRDMsSamplesConf & tunedSNR, const std::string & snrFilename);
+void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename);
 
 
 // Implementations
