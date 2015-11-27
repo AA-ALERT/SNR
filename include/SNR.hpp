@@ -186,7 +186,7 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
 
   // Begin kernel's template
   *code = "__kernel void snrSamplesDMs" + isa::utils::toString(observation.getNrDMs()) + "(__global const " + dataName + " * const restrict input, __global float * const restrict output) {\n"
-    "unsigned int dm = (" + isa::utils::toString(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
+    "unsigned int dm = (get_group_id(0) * " + isa::utils::toString(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
     "float delta = 0.0f;\n"
     "<%DEF%>"
     "\n"
