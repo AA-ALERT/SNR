@@ -5,7 +5,7 @@ Some signal to noise computation kernels for many-core accelerators.
 
 ## Publications
 
-* Alessio Sclocco, Henri E. Bal, Rob V. van Nieuwpoort. _Finding Pulsars in Real-Time_. **IEEE International Conference on eScience**, 31 August - 4 September, 2015, Munic, Germany. (print) ([preprint](http://alessio.sclocco.eu/pubs/sclocco2015.pdf)) ([slides](http://alessio.sclocco.eu/pubs/Presentation_eScience2015.pdf))
+* Alessio Sclocco, Henri E. Bal, Rob V. van Nieuwpoort. _Finding Pulsars in Real-Time_. **IEEE International Conference on eScience**, 31 August - 4 September, 2015, Munic, Germany. ([print](http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=7304280)) ([preprint](http://alessio.sclocco.eu/pubs/sclocco2015.pdf)) ([slides](http://alessio.sclocco.eu/pubs/Presentation_eScience2015.pdf))
 
 ## Dependencies
 
