@@ -20,7 +20,7 @@ def get_tables(queue):
 
 def create_table(queue, table):
     """Create a table to store auto-tuning results for SNR."""
-    queue.execute("CREATE table " + table + "(id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, DMs INTEGER NOT NULL, samples INTEGER NOT NULL, integration INTEGER NOT NULL, nrThreadsD0 INTEGER NOT NULL, nrItemsD0 INTEGER NOT NULL, GBs FLOAT UNSIGNED NOT NULL, time FLOAT UNSIGNED NOT NULL, time_err FLOAT UNSIGNED NOT NULL, cov FLOAT UNSIGNED NOT NULL)")
+    queue.execute("CREATE table " + table + "(id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, DMs INTEGER NOT NULL, samples INTEGER NOT NULL, nrThreadsD0 INTEGER NOT NULL, nrItemsD0 INTEGER NOT NULL, GBs FLOAT UNSIGNED NOT NULL, time FLOAT UNSIGNED NOT NULL, time_err FLOAT UNSIGNED NOT NULL, cov FLOAT UNSIGNED NOT NULL)")
 
 def delete_table(queue, table):
     """Delete table."""
@@ -31,7 +31,7 @@ def load_file(queue, table, input_file):
     for line in input_file:
         if (line[0] != "#") and (line[0] != "\n"):
             items = line.split(sep=" ")
-            queue.execute("INSERT INTO " + table + " VALUES (NULL, " + items[0] + ", " + items[1] + ", " + items[2] + ", " + items[3] + ", " + items[4] + ", " + items[5] + ", " + items[6] + ", " + items[7] + ", " + items[8].rstrip("\n") + ")")
+            queue.execute("INSERT INTO " + table + " VALUES (NULL, " + items[0] + ", " + items[1] + ", " + items[2] + ", " + items[3] + ", " + items[4] + ", " + items[5] + ", " + items[6] + ", " + items[7].rstrip("\n") + ")")
 
 def print_results(confs):
     """Print the result tuples."""
