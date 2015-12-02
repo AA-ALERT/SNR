@@ -22,6 +22,6 @@ def tune(queue, table, operator, samples):
         for dm in dms_range:
             queue.execute("SELECT nrThreadsD0,nrItemsD0,GBs,time,time_err,cov FROM " + table + " WHERE (GBs = (SELECT " + operator + "(GBs) FROM " + table + " WHERE (DMs = " + str(dm[0]) + " AND samples = " + samples + "))) AND (DMs = " + str(dm[0]) + " AND samples = " + samples + ")")
             best = queue.fetchall()
-            confs.append([dm[0], best[0][0], best[0][1], best[0][2], best[0][3], best[0][4], best[0][5], best[0][6]])
+            confs.append([dm[0], samples, best[0][0], best[0][1], best[0][2], best[0][3], best[0][4], best[0][5]])
     return confs
 
