@@ -43,7 +43,6 @@ int main(int argc, char * argv[]) {
 	unsigned int nrIterations = 0;
 	unsigned int clPlatformID = 0;
 	unsigned int clDeviceID = 0;
-  unsigned int vectorWidth = 0;
 	unsigned int minThreads = 0;
 	unsigned int maxItems = 0;
 	unsigned int maxThreads = 0;
@@ -64,14 +63,13 @@ int main(int argc, char * argv[]) {
 		clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
 		padding = args.getSwitchArgument< unsigned int >("-padding");
-    vectorWidth = args.getSwitchArgument< unsigned int >("-vector");
 		minThreads = args.getSwitchArgument< unsigned int >("-min_threads");
 		maxItems = args.getSwitchArgument< unsigned int >("-max_items");
 		maxThreads = args.getSwitchArgument< unsigned int >("-max_threads");
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
 		observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
 	} catch ( isa::utils::EmptyCommandLine & err ) {
-		std::cerr << argv[0] << " [-dms_samples] [-samples_dms] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -vector ... -min_threads ... -max_threads ... -max_items ... -dms ... -samples ..." << std::endl;
+		std::cerr << argv[0] << " [-dms_samples] [-samples_dms] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -min_threads ... -max_threads ... -max_items ... -dms ... -samples ..." << std::endl;
 		return 1;
 	} catch ( std::exception & err ) {
 		std::cerr << err.what() << std::endl;
@@ -109,9 +107,6 @@ int main(int argc, char * argv[]) {
   std::cout << "# nrDMs nrSamples threadsD0 itemsD0 GB/s time stdDeviation COV" << std::endl << std::endl;
 
 	for ( unsigned int threads = minThreads; threads <= maxThreads; threads++ ) {
-    if ( threads % vectorWidth != 0 ) {
-      continue;
-    }
     conf.setNrThreadsD0(threads);
 
     for ( unsigned int itemsPerThread = 1; (itemsPerThread * 4) < maxItems; itemsPerThread++ ) {
