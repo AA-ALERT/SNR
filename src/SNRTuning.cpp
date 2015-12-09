@@ -115,7 +115,11 @@ int main(int argc, char * argv[]) {
     conf.setNrThreadsD0(threads);
 
     for ( unsigned int itemsPerThread = 1; (itemsPerThread * 4) < maxItems; itemsPerThread++ ) {
-      if ( samplesDMs ) {
+      if ( DMsSamples ) {
+        if ( observation.getNrSamplesPerSecond() % (itemsPerThread * conf.getNrThreadsD0()) != 0 ) {
+          continue;
+        }
+      } else if ( samplesDMs ) {
         if ( observation.getNrDMs() % ( itemsPerThread * conf.getNrThreadsD0()) != 0 ) {
           continue;
         }
