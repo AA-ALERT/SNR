@@ -121,14 +121,12 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf
     + dataName + " max<%NUM%> = input[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
     "float variance<%NUM%> = 0.0f;\n"
     "float mean<%NUM%> = max<%NUM%>;\n";
-  std::string compute_sTemplate = "if ( sample + <%OFFSET%> < " + isa::utils::toString(nrSamples) + " ) {\n"
-    "item = input[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
+  std::string compute_sTemplate = "item = input[(dm * " + isa::utils::toString(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
     "counter<%NUM%> += 1.0f;\n"
     "delta = item - mean<%NUM%>;\n"
     "max<%NUM%> = fmax(max<%NUM%>, item);\n"
     "mean<%NUM%> += delta / counter<%NUM%>;\n"
-    "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
-    "}\n";
+    "variance<%NUM%> += delta * (item - mean<%NUM%>);\n";
   std::string reduce_sTemplate = "delta = mean<%NUM%> - mean0;\n"
     "counter0 += counter<%NUM%>;\n"
     "max0 = fmax(max0, max<%NUM%>);\n"
