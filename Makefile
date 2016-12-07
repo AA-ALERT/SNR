@@ -1,12 +1,12 @@
 
-ROOT ?= $(HOME)
+SOURCE_ROOT ?= $(HOME)
 
 # https://github.com/isazi/utils
-UTILS := $(ROOT)/src/utils
+UTILS := $(SOURCE_ROOT)/src/utils
 # https://github.com/isazi/OpenCL
-OPENCL := $(ROOT)/src/OpenCL
+OPENCL := $(SOURCE_ROOT)/src/OpenCL
 # https://github.com/isazi/AstroData
-ASTRODATA := $(ROOT)/src/AstroData
+ASTRODATA := $(SOURCE_ROOT)/src/AstroData
 
 INCLUDES := -I"include" -I"$(ASTRODATA)/include" -I"$(UTILS)/include"
 CL_INCLUDES := $(INCLUDES) -I"$(OPENCL)/include"
@@ -42,6 +42,13 @@ bin/SNRTuning: $(CL_DEPS) src/SNRTuning.cpp
 
 bin/printCode: $(DEPS) src/printCode.cpp
 	$(CC) -o bin/printCode src/printCode.cpp $(DEPS) $(INCLUDES) $(LDFLAGS) $(CFLAGS)
+
+test: bin/printCode bin/SNRTest
+	./bin/printCode -dms_samples -padding 32 -threads0 16 -items0 16 -samples 256 -dms 256
+	./bin/SNRTest -opencl_platform 0 -opencl_device 0 -padding 32 -threads0 16 -items0 16 -dms 256 -samples 256
+
+tune: bin/SNRTuning
+	./bin/SNRTuning -opencl_platform 0 -opencl_device 0 -padding 32 -iterations 4 -max_threads 32 -max_items 32 -dms 256 -samples 256 -min_threads 1
 
 clean:
 	-@rm bin/*
