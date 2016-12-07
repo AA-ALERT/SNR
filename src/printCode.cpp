@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
   AstroData::Observation observation;
   PulsarSearch::snrConf conf;
 
-	try {
+  try {
     isa::utils::ArgumentList args(argc, argv);
     DMsSamples = args.getSwitch("-dms_samples");
     samplesDMs = args.getSwitch("-samples_dms");
@@ -42,14 +42,13 @@ int main(int argc, char *argv[]) {
     conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threads0"));
     conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-items0"));
     observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
-	} catch  ( isa::utils::SwitchNotFound & err ) {
+  } catch  ( isa::utils::SwitchNotFound & err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception & err ) {
-    std::cerr << "Usage: " << argv[0] << " [-dms_samples] [-samples_dms] -padding ... -threads0 ... -items0 ... -samples ..." << std::endl;
-    std::cerr << "\t -samples_dms -dms ..." << std::endl;
-		return 1;
-	}
+    std::cerr << "Usage: " << argv[0] << " [-dms_samples] [-samples_dms] -padding ... -threads0 ... -items0 ... -samples ... -dms ..." << std::endl;
+    return 1;
+  }
 
   // Generate kernel
   std::string * code;

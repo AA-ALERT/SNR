@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 	try {
     isa::utils::ArgumentList args(argc, argv);
     printCode = args.getSwitch("-print_code");
-    printResults = args.getSwitch("-print_res");
+    printResults = args.getSwitch("-print_results");
 		clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
 		clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
     padding = args.getSwitchArgument< unsigned int >("-padding");
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception &err ) {
-    std::cerr << "Usage: " << argv[0] << " [-print_code] [-print_res] -opencl_platform ... -opencl_device ... -padding ... -threads0 ... -items0 ... -dms ... -samples ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threads0 ... -items0 ... -dms ... -samples ..." << std::endl;
 		return 1;
 	}
 
