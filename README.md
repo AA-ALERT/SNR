@@ -23,6 +23,12 @@ Then build and test as follows:
  $ make tune
 ```
 
+## Dependencies
+
+* [utils](https://github.com/isazi/utils) - master branch
+* [OpenCL](https://github.com/isazi/OpenCL) - master branch
+* [AstroData](https://github.com/isazi/AstroData) - 2.0 branch
+
 # Included programs
 
 The integration step is typically compiled as part of a larger pipeline, but this repo contains two example programs in the `bin/` directory to test and autotune an integration kernel.
