@@ -26,7 +26,6 @@
 
 int main(int argc, char *argv[]) {
   bool DMsSamples = false;
-  bool samplesDMs = false;
   unsigned int padding = 0;
   AstroData::Observation observation;
   PulsarSearch::snrConf conf;
@@ -34,33 +33,42 @@ int main(int argc, char *argv[]) {
   try {
     isa::utils::ArgumentList args(argc, argv);
     DMsSamples = args.getSwitch("-dms_samples");
-    samplesDMs = args.getSwitch("-samples_dms");
-    if ( samplesDMs  ) {
-      observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0f, 0.0f);
+    bool samplesDMs = args.getSwitch("-samples_dms");
+    if ( (DMsSamples && samplesDMs) || (!DMsSamples && !samplesDMs) ) {
+      std::cerr << "-dms_samples and -samples_dms are mutually exclusive." << std::endl;
+      return 1;
     }
     padding = args.getSwitchArgument< unsigned int >("-padding");
-    conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threads0"));
-    conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-items0"));
-    observation.setNrSamplesPerSecond(args.getSwitchArgument< unsigned int >("-samples"));
+    conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threadsD0"));
+    conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-itemsD0"));
+    conf.setSubbandDedispersion(args.getSwitch("-subband"));
+    observation.setNrSyntheticBeams(args.getSwitchArgument< unsigned int >("-beams"));
+    observation.setNrSamplesPerBatch(args.getSwitchArgument< unsigned int >("-samples"));
+    if ( conf.getSubbandDedispersion() ) {
+      observation.setDMSubbandingRange(args.getSwitchArgument< unsigned int >("-subbanding_dms"), 0.0f, 0.0f);
+    } else {
+      observation.setDMSubbandingRange(1, 0.0f, 0.0f);
+    }
+    observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0f, 0.0f);
   } catch  ( isa::utils::SwitchNotFound & err ) {
     std::cerr << err.what() << std::endl;
     return 1;
   } catch ( std::exception & err ) {
-    std::cerr << "Usage: " << argv[0] << " [-dms_samples] [-samples_dms] -padding ... -threads0 ... -items0 ... -samples ... -dms ..." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [-dms_samples | -samples_dms] -padding ... -threadsD0 ... -itemsD0 ... -beams ... -samples ... -dms ..." << std::endl;
+    std::cerr << "\t -subband : -subbanding_dms ..." << std::endl;
     return 1;
   }
 
   // Generate kernel
   std::string * code;
   if ( DMsSamples ) {
-    code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation.getNrSamplesPerSecond(), padding);
+    code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation,  observation.getNrSamplesPerBatch(), padding);
     std::cout << *code << std::endl;
-  }
-  if ( samplesDMs ) {
-    code = PulsarSearch::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, padding);
+  } else {
+    code = PulsarSearch::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation,  observation.getNrSamplesPerBatch(), padding);
     std::cout << *code << std::endl;
   }
 
-	return 0;
+  return 0;
 }
 
