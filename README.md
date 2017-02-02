@@ -4,6 +4,7 @@ Some signal to noise computation kernels for many-core accelerators, with classe
 
 ## Publications
 
+* Alessio Sclocco, Joeri van Leeuwen, Henri E. Bal, Rob V. van Nieuwpoort. _A Real-Time Radio Transient Pipeline for ARTS._ **3rd IEEE Global Conference on Signal & Information Processing**, December 14-16, 2015, Orlando (Florida), USA. ([print](http://www.sciencedirect.com/science/article/pii/S2213133716000020)) ([preprint](http://alessio.sclocco.eu/pubs/sclocco2015a.pdf)) ([slides](http://alessio.sclocco.eu/pubs/Presentation_GlobalSIP2015.pdf))
 * Alessio Sclocco, Henri E. Bal, Rob V. van Nieuwpoort. _Finding Pulsars in Real-Time_. **IEEE International Conference on eScience**, 31 August - 4 September, 2015, Munic, Germany. ([print](http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=7304280)) ([preprint](http://alessio.sclocco.eu/pubs/sclocco2015.pdf)) ([slides](http://alessio.sclocco.eu/pubs/Presentation_eScience2015.pdf))
 
 # Installation
