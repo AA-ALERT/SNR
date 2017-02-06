@@ -32,22 +32,28 @@ CL_DEPS := $(DEPS) $(OPENCL)/bin/Exceptions.o $(OPENCL)/bin/InitializeOpenCL.o $
 all: bin/SNR.o bin/SNRTest bin/SNRTuning bin/printCode
 
 bin/SNR.o: $(ASTRODATA)/bin/Observation.o $(UTILS)/bin/utils.o include/SNR.hpp src/SNR.cpp
+	-mkdir -p bin
 	$(CC) -o bin/SNR.o -c src/SNR.cpp $(CL_INCLUDES) $(CFLAGS)
 
 bin/SNRTest: $(CL_DEPS) src/SNRTest.cpp
+	-mkdir -p bin
 	$(CC) -o bin/SNRTest src/SNRTest.cpp $(CL_DEPS) $(CL_INCLUDES) $(CL_LIBS) $(CL_LDFLAGS) $(CFLAGS)
 
 bin/SNRTuning: $(CL_DEPS) src/SNRTuning.cpp
+	-mkdir -p bin
 	$(CC) -o bin/SNRTuning src/SNRTuning.cpp $(CL_DEPS) $(CL_INCLUDES) $(CL_LIBS) $(CL_LDFLAGS) $(CFLAGS)
 
 bin/printCode: $(DEPS) src/printCode.cpp
+	-mkdir -p bin
 	$(CC) -o bin/printCode src/printCode.cpp $(DEPS) $(INCLUDES) $(LDFLAGS) $(CFLAGS)
 
 test: bin/printCode bin/SNRTest
+	-mkdir -p bin
 	./bin/printCode -dms_samples -padding 32 -threads0 16 -items0 16 -samples 256 -dms 256
 	./bin/SNRTest -opencl_platform 0 -opencl_device 0 -padding 32 -threads0 16 -items0 16 -dms 256 -samples 256
 
 tune: bin/SNRTuning
+	-mkdir -p bin
 	./bin/SNRTuning -opencl_platform 0 -opencl_device 0 -padding 32 -iterations 4 -max_threads 32 -max_items 32 -dms 256 -samples 256 -min_threads 1
 
 clean:
