@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threadsD0"));
     conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-itemsD0"));
     conf.setSubbandDedispersion(args.getSwitch("-subband"));
-    observation.setNrSyntheticBeams(args.getSwitchArgument< unsigned int >("-beams"));
+    observation.setNrSynthesizedBeams(args.getSwitchArgument< unsigned int >("-beams"));
     observation.setNrSamplesPerBatch(args.getSwitchArgument< unsigned int >("-samples"));
     if ( conf.getSubbandDedispersion() ) {
       observation.setDMSubbandingRange(args.getSwitchArgument< unsigned int >("-subbanding_dms"), 0.0f, 0.0f);
