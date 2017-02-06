@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     conf.setNrThreadsD0(args.getSwitchArgument< unsigned int >("-threadsD0"));
     conf.setNrItemsD0(args.getSwitchArgument< unsigned int >("-itemsD0"));
     conf.setSubbandDedispersion(args.getSwitch("-subband"));
-    observation.setNrSyntheticBeams(args.getSwitchArgument< unsigned int >("-beams"));
+    observation.setNrSynthesizedBeams(args.getSwitchArgument< unsigned int >("-beams"));
     observation.setNrSamplesPerBatch(args.getSwitchArgument< unsigned int >("-samples"));
     if ( conf.getSubbandDedispersion() ) {
       observation.setDMSubbandingRange(args.getSwitchArgument< unsigned int >("-subbanding_dms"), 0.0f, 0.0f);
@@ -89,11 +89,11 @@ int main(int argc, char *argv[]) {
   std::vector< float > output;
   cl::Buffer input_d, output_d;
   if ( DMsSamples ) {
-    input.resize(observation.getNrSyntheticBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs() * observation.getNrSamplesPerPaddedBatch(padding / sizeof(inputDataType)));
+    input.resize(observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs() * observation.getNrSamplesPerPaddedBatch(padding / sizeof(inputDataType)));
   } else {
-    input.resize(observation.getNrSyntheticBeams() * observation.getNrSamplesPerBatch() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(inputDataType)));
+    input.resize(observation.getNrSynthesizedBeams() * observation.getNrSamplesPerBatch() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(inputDataType)));
   }
-  output.resize(observation.getNrSyntheticBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float)));
+  output.resize(observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float)));
   try {
     input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
     output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(float), 0, 0);
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
   }
 
   srand(time(0));
-  for ( unsigned int beam = 0; beam < observation.getNrSyntheticBeams(); beam++ ) {
+  for ( unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++ ) {
     if ( printResults ) {
       std::cout << "Beam: " << beam << std::endl;
     }
@@ -179,16 +179,16 @@ int main(int argc, char *argv[]) {
   }
 
   // Run OpenCL kernel and CPU control
-  std::vector< isa::utils::Stats< inputDataType > > control(observation.getNrSyntheticBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs());
+  std::vector< isa::utils::Stats< inputDataType > > control(observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs());
   try {
     cl::NDRange global;
     cl::NDRange local;
 
     if ( DMsSamples ) {
-      global = cl::NDRange(conf.getNrThreadsD0(), observation.getNrDMsSubbanding() * observation.getNrDMs(), observation.getNrSyntheticBeams());
+      global = cl::NDRange(conf.getNrThreadsD0(), observation.getNrDMsSubbanding() * observation.getNrDMs(), observation.getNrSynthesizedBeams());
       local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
     } else {
-      global = cl::NDRange((observation.getNrDMsSubbanding() * observation.getNrDMs()) / conf.getNrItemsD0(), observation.getNrSyntheticBeams());
+      global = cl::NDRange((observation.getNrDMsSubbanding() * observation.getNrDMs()) / conf.getNrItemsD0(), observation.getNrSynthesizedBeams());
       local = cl::NDRange(conf.getNrThreadsD0(), 1);
     }
 
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "OpenCL error: " << std::to_string(err.err()) << "." << std::endl;
     return 1;
   }
-  for ( unsigned int beam = 0; beam < observation.getNrSyntheticBeams(); beam++ ) {
+  for ( unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++ ) {
     for ( unsigned int subbandDM = 0; subbandDM < observation.getNrDMsSubbanding(); subbandDM++ ) {
       for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
         control[(beam * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float))) + (subbandDM * observation.getNrPaddedDMs(padding / sizeof(float))) + dm] = isa::utils::Stats< inputDataType >();
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  for ( unsigned int beam = 0; beam < observation.getNrSyntheticBeams(); beam++ ) {
+  for ( unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++ ) {
     if ( printResults ) {
       std::cout << "Beam: " << beam << std::endl;
     }
@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
   }
 
   if ( wrongSamples > 0 ) {
-    std::cout << "Wrong samples: " << wrongSamples << " (" << (wrongSamples * 100.0) / static_cast< uint64_t >(observation.getNrSyntheticBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs()) << "%)." << std::endl;
+    std::cout << "Wrong samples: " << wrongSamples << " (" << (wrongSamples * 100.0) / static_cast< uint64_t >(observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs()) << "%)." << std::endl;
   } else {
     std::cout << "TEST PASSED." << std::endl;
   }
