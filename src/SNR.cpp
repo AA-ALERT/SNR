@@ -16,12 +16,12 @@
 
 namespace PulsarSearch {
 
-snrConf::snrConf() : subbandDedispersion(false), nrThreadsD0(0), nrItemsD0(0) {}
+snrConf::snrConf() : KernelConf(), subbandDedispersion(false) {}
 
 snrConf::~snrConf() {}
 
 std::string snrConf::print() const {
-  return std::to_string(subbandDedispersion) + " " + std::to_string(nrThreadsD0) + " " + std::to_string(nrItemsD0);
+  return std::to_string(subbandDedispersion) + " " + isa::OpenCL::KernelConf::print();
 }
 
 void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) {

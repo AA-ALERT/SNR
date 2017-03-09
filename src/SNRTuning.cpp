@@ -38,6 +38,7 @@ void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue
 int main(int argc, char * argv[]) {
   bool reInit = true;
   bool DMsSamples = false;
+  bool bestMode = false;
   unsigned int padding = 0;
   unsigned int nrIterations = 0;
   unsigned int clPlatformID = 0;
@@ -45,8 +46,10 @@ int main(int argc, char * argv[]) {
   unsigned int minThreads = 0;
   unsigned int maxItems = 0;
   unsigned int maxThreads = 0;
+  double bestGBs = 0.0;
   AstroData::Observation observation;
   PulsarSearch::snrConf conf;
+  PulsarSearch::snrConf bestConf;
   cl::Event event;
 
   try {
@@ -60,6 +63,7 @@ int main(int argc, char * argv[]) {
     nrIterations = args.getSwitchArgument< unsigned int >("-iterations");
     clPlatformID = args.getSwitchArgument< unsigned int >("-opencl_platform");
     clDeviceID = args.getSwitchArgument< unsigned int >("-opencl_device");
+    bestMode = args.getSwitch("-best");
     padding = args.getSwitchArgument< unsigned int >("-padding");
     minThreads = args.getSwitchArgument< unsigned int >("-min_threads");
     maxItems = args.getSwitchArgument< unsigned int >("-max_items");
@@ -74,7 +78,7 @@ int main(int argc, char * argv[]) {
     }
     observation.setDMRange(args.getSwitchArgument< unsigned int >("-dms"), 0.0, 0.0);
   } catch ( isa::utils::EmptyCommandLine & err ) {
-    std::cerr << argv[0] << " [-dms_samples | -samples_dms] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -min_threads ... -max_threads ... -max_items ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
+    std::cerr << argv[0] << " [-best] [-dms_samples | -samples_dms] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -min_threads ... -max_threads ... -max_items ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
     std::cerr << "\t -subband : -subbanding_dms ..." << std::endl;
     return 1;
   } catch ( std::exception & err ) {
@@ -119,8 +123,10 @@ int main(int argc, char * argv[]) {
     }
   }
 
-  std::cout << std::fixed << std::endl;
-  std::cout << "# nrBeams nrDMs nrSamples *configuration* GB/s time stdDeviation COV" << std::endl << std::endl;
+  if ( !bestMode ) {
+    std::cout << std::fixed << std::endl;
+    std::cout << "# nrBeams nrDMs nrSamples *configuration* GB/s time stdDeviation COV" << std::endl << std::endl;
+  }
 
   for ( unsigned int threads = minThreads; threads <= maxThreads; threads++ ) {
     conf.setNrThreadsD0(threads);
@@ -209,16 +215,26 @@ int main(int argc, char * argv[]) {
       }
       delete kernel;
 
-      std::cout << observation.getNrSynthesizedBeams() << " " << observation.getNrDMsSubbanding() * observation.getNrDMs() << " " << observation.getNrSamplesPerBatch() << " ";
-      std::cout << conf.print() << " ";
-      std::cout << std::setprecision(3);
-      std::cout << gbs / timer.getAverageTime() << " ";
-      std::cout << std::setprecision(6);
-      std::cout << timer.getAverageTime() << " " << timer.getStandardDeviation() << " " << timer.getCoefficientOfVariation() << std::endl;
+      if ( (gbs / timer.getAverageTime()) > bestGBs ) {
+        bestGBs = gbs / timer.getAverageTime();
+        bestConf = conf;
+      }
+      if ( !bestMode ) {
+        std::cout << observation.getNrSynthesizedBeams() << " " << observation.getNrDMsSubbanding() * observation.getNrDMs() << " " << observation.getNrSamplesPerBatch() << " ";
+        std::cout << conf.print() << " ";
+        std::cout << std::setprecision(3);
+        std::cout << gbs / timer.getAverageTime() << " ";
+        std::cout << std::setprecision(6);
+        std::cout << timer.getAverageTime() << " " << timer.getStandardDeviation() << " " << timer.getCoefficientOfVariation() << std::endl;
+      }
     }
   }
 
-  std::cout << std::endl;
+  if ( bestMode ) {
+    std::cout << observation.getNrDMsSubbanding() * observation.getNrDMs() << " " << observation.getNrSamplesPerBatch() << " " << bestConf.print() << std::endl;
+  } else {
+    std::cout << std::endl;
+  }
 
   return 0;
 }

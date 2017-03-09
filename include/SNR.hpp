@@ -18,33 +18,27 @@
 #include <map>
 #include <fstream>
 
-#include <utils.hpp>
+#include <Kernel.hpp>
 #include <Observation.hpp>
+#include <utils.hpp>
 
-#ifndef SNR_HPP
-#define SNR_HPP
+#pragma once
 
 namespace PulsarSearch {
 
-class snrConf {
+class snrConf : public isa::OpenCL::KernelConf {
 public:
   snrConf();
   ~snrConf();
   // Get
-  unsigned int getNrThreadsD0() const;
-  unsigned int getNrItemsD0() const;
   bool getSubbandDedispersion() const;
   // Set
-  void setNrThreadsD0(unsigned int threads);
-  void setNrItemsD0(unsigned int items);
   void setSubbandDedispersion(bool subband);
   // utils
   std::string print() const;
 
 private:
   bool subbandDedispersion;
-  unsigned int nrThreadsD0;
-  unsigned int nrItemsD0;
 };
 
 typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * > * > tunedSNRConf;
@@ -57,24 +51,8 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename);
 
 
 // Implementations
-inline unsigned int snrConf::getNrThreadsD0() const {
-  return nrThreadsD0;
-}
-
-inline unsigned int snrConf::getNrItemsD0() const {
-  return nrItemsD0;
-}
-
 inline bool snrConf::getSubbandDedispersion() const {
   return subbandDedispersion;
-}
-
-inline void snrConf::setNrThreadsD0(unsigned int threads) {
-  nrThreadsD0 = threads;
-}
-
-inline void snrConf::setNrItemsD0(unsigned int items) {
-  nrItemsD0 = items;
 }
 
 inline void snrConf::setSubbandDedispersion(bool subband) {
@@ -288,6 +266,4 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
 }
 
 } // PulsarSearch
-
-#endif // SNR_HPP
 

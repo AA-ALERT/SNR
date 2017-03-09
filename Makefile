@@ -43,9 +43,9 @@ bin/SNRTuning: $(CL_DEPS) src/SNRTuning.cpp
 	-@mkdir -p bin
 	$(CC) -o bin/SNRTuning src/SNRTuning.cpp $(CL_DEPS) $(CL_INCLUDES) $(CL_LIBS) $(CL_LDFLAGS) $(CFLAGS)
 
-bin/printCode: $(DEPS) src/printCode.cpp
+bin/printCode: $(CL_DEPS) src/printCode.cpp
 	-@mkdir -p bin
-	$(CC) -o bin/printCode src/printCode.cpp $(DEPS) $(INCLUDES) $(LDFLAGS) $(CFLAGS)
+	$(CC) -o bin/printCode src/printCode.cpp $(CL_DEPS) $(CL_INCLUDES) $(CL_LDFLAGS) $(CFLAGS)
 
 test: bin/printCode bin/SNRTest
 	./bin/printCode -dms_samples -padding 32 -threads0 16 -items0 16 -samples 256 -dms 256
