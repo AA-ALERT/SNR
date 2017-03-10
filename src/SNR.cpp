@@ -33,6 +33,9 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
   std::ifstream snrFile;
 
   snrFile.open(snrFilename);
+  if ( !snrFile ) {
+    throw FileError("Impossible to open " + snrFilename );
+  }
   while ( ! snrFile.eof() ) {
     unsigned int splitPoint = 0;
 

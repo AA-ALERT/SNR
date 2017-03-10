@@ -20,6 +20,7 @@
 
 #include <Kernel.hpp>
 #include <Observation.hpp>
+#include <Platform.hpp>
 #include <utils.hpp>
 
 #pragma once
