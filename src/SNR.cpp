@@ -34,7 +34,7 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
 
   snrFile.open(snrFilename);
   if ( !snrFile ) {
-    throw FileError("Impossible to open " + snrFilename );
+    throw AstroData::FileError("Impossible to open " + snrFilename );
   }
   while ( ! snrFile.eof() ) {
     unsigned int splitPoint = 0;
