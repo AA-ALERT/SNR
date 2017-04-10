@@ -60,7 +60,19 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
     splitPoint = temp.find(" ");
     parameters->setNrThreadsD0(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
     temp = temp.substr(splitPoint + 1);
-    parameters->setNrItemsD0(isa::utils::castToType< std::string, unsigned int >(temp));
+    splitPoint = temp.find(" ");
+    parameters->setNrThreadsD1(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    parameters->setNrThreadsD2(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    parameters->setNrItemsD0(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    temp = temp.substr(splitPoint + 1);
+    splitPoint = temp.find(" ");
+    parameters->setNrItemsD1(isa::utils::castToType< std::string, unsigned int >(temp.substr(0, splitPoint)));
+    temp = temp.substr(splitPoint + 1);
+    parameters->setNrItemsD2(isa::utils::castToType< std::string, unsigned int >(temp));
 
     if ( tunedSNR.count(deviceName) == 0 ) {
       std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * > * externalContainer = new std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * >();
