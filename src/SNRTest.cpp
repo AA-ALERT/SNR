@@ -259,7 +259,7 @@ int main(int argc, char *argv[]) {
           wrongPositions++;
         }
         if ( printResults ) {
-          std::cout << output[(beam * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float))) + (subbandDM * observation.getNrPaddedDMs(padding / sizeof(float))) + dm] << " ";
+          std::cout << outputSNR[(beam * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float))) + (subbandDM * observation.getNrPaddedDMs(padding / sizeof(float))) + dm] << " ";
         }
       }
       if ( printResults ) {
