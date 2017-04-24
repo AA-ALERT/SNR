@@ -159,7 +159,7 @@ int main(int argc, char * argv[]) {
         clQueues = new std::vector< std::vector< cl::CommandQueue > >();
         isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
         try {
-          initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputSNR_d, observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float)) * sizeof(float), &outputSample_d, observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(unsigned int)) * sizeof(unsigned int));
+          initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputSNR_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMsSubbanding() * observation.getNrDMs(), padding / sizeof(float)) * sizeof(float), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMsSubbanding() * observation.getNrDMs(), padding / sizeof(unsigned int)) * sizeof(unsigned int));
         } catch ( cl::Error & err ) {
           return -1;
         }
