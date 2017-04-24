@@ -33,7 +33,7 @@
 #include <Stats.hpp>
 
 
-void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * input, cl::Buffer * input_d, cl::Buffer * output_d, const unsigned int output_size);
+void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * input, cl::Buffer * input_d, cl::Buffer * outputSNR_d, const uint64_t outputSNR_size, cl::Buffer * outputSample_d, const uint64_t outputSample_size);
 
 int main(int argc, char * argv[]) {
   bool reInit = true;
@@ -94,7 +94,7 @@ int main(int argc, char * argv[]) {
 
   // Allocate memory
   std::vector< inputDataType > input;
-  cl::Buffer input_d, output_d;
+  cl::Buffer input_d, outputSNR_d, outputSample_d;
 
   if ( DMsSamples ) {
     input.resize(observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrDMs() * observation.getNrSamplesPerPaddedBatch(padding / sizeof(inputDataType)));
@@ -144,7 +144,7 @@ int main(int argc, char * argv[]) {
       conf.setNrItemsD0(itemsPerThread);
 
       // Generate kernel
-      double gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMsSubbanding() * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMsSubbanding() * observation.getNrDMs()) * sizeof(float)));
+      double gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMsSubbanding() * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMsSubbanding() * observation.getNrDMs()) * sizeof(float)) + (observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMsSubbanding() * observation.getNrDMs()) * sizeof(unsigned int)));
       cl::Kernel * kernel;
       isa::utils::Timer timer;
       std::string * code;
@@ -159,7 +159,7 @@ int main(int argc, char * argv[]) {
         clQueues = new std::vector< std::vector< cl::CommandQueue > >();
         isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
         try {
-          initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &output_d, observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float)) * sizeof(float));
+          initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputSNR_d, observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(float)) * sizeof(float), &outputSample_d, observation.getNrSynthesizedBeams() * observation.getNrDMsSubbanding() * observation.getNrPaddedDMs(padding / sizeof(unsigned int)) * sizeof(unsigned int));
         } catch ( cl::Error & err ) {
           return -1;
         }
@@ -188,7 +188,8 @@ int main(int argc, char * argv[]) {
       }
 
       kernel->setArg(0, input_d);
-      kernel->setArg(1, output_d);
+      kernel->setArg(1, outputSNR_d);
+      kernel->setArg(2, outputSample_d);
 
       try {
         // Warm-up run
@@ -239,10 +240,11 @@ int main(int argc, char * argv[]) {
   return 0;
 }
 
-void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * input, cl::Buffer * input_d, cl::Buffer * output_d, const unsigned int output_size) {
+void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * input, cl::Buffer * input_d, cl::Buffer * outputSNR_d, const uint64_t outputSNR_size, cl::Buffer * outputSample_d, const uint64_t outputSample_size) {
   try {
     *input_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, input->size() * sizeof(inputDataType), 0, 0);
-    *output_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, output_size, 0, 0);
+    *outputSNR_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, outputSNR_size, 0, 0);
+    *outputSample_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, outputSample_size, 0, 0);
     clQueue->enqueueWriteBuffer(*input_d, CL_FALSE, 0, input->size() * sizeof(inputDataType), reinterpret_cast< void * >(input->data()));
     clQueue->finish();
   } catch ( cl::Error & err ) {
