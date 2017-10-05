@@ -1,4 +1,5 @@
-// Copyright 2014 Alessio Sclocco <a.sclocco@vu.nl>
+// Copyright 2017 Netherlands Institute for Radio Astronomy (ASTRON)
+// Copyright 2017 Netherlands eScience Center
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,7 +66,7 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf
   std::string * code = new std::string();
 
   if ( conf.getSubbandDedispersion() ) {
-    nrDMs = observation.getNrDMsSubbanding() * observation.getNrDMs();
+    nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
   } else {
     nrDMs = observation.getNrDMs();
   }
@@ -196,7 +197,7 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
   std::string * code = new std::string();
 
   if ( conf.getSubbandDedispersion() ) {
-    nrDMs = observation.getNrDMsSubbanding() * observation.getNrDMs();
+    nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
   } else {
     nrDMs = observation.getNrDMs();
   }
