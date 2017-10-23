@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
   uint64_t wrongSamples = 0;
   uint64_t wrongPositions = 0;
   AstroData::Observation observation;
-  PulsarSearch::snrConf conf;
+  SNR::snrConf conf;
 
   try {
     isa::utils::ArgumentList args(argc, argv);
@@ -178,9 +178,9 @@ int main(int argc, char *argv[]) {
   cl::Kernel * kernel;
   std::string * code;
   if ( DMsSamples ) {
-    code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
+    code = SNR::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
   } else {
-    code = PulsarSearch::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
+    code = SNR::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
   }
   if ( printCode ) {
     std::cout << *code << std::endl;

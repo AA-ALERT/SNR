@@ -26,7 +26,7 @@
 
 #pragma once
 
-namespace PulsarSearch {
+namespace SNR {
 
 class snrConf : public isa::OpenCL::KernelConf {
 public:
@@ -43,7 +43,7 @@ private:
   bool subbandDedispersion;
 };
 
-typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * > * > tunedSNRConf;
+typedef std::map< std::string, std::map< unsigned int, std::map< unsigned int, SNR::snrConf * > * > * > tunedSNRConf;
 
 // OpenCL SNR
 template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf, const std::string & dataName, const AstroData::Observation & observation, const unsigned int nrSamples, const unsigned int padding);
@@ -279,5 +279,5 @@ template< typename T > std::string * getSNRSamplesDMsOpenCL(const snrConf & conf
   return code;
 }
 
-} // PulsarSearch
+} // SNR
 

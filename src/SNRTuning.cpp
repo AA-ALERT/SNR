@@ -49,8 +49,8 @@ int main(int argc, char * argv[]) {
   unsigned int maxThreads = 0;
   double bestGBs = 0.0;
   AstroData::Observation observation;
-  PulsarSearch::snrConf conf;
-  PulsarSearch::snrConf bestConf;
+  SNR::snrConf conf;
+  SNR::snrConf bestConf;
   cl::Event event;
 
   try {
@@ -150,9 +150,9 @@ int main(int argc, char * argv[]) {
       isa::utils::Timer timer;
       std::string * code;
       if ( DMsSamples ) {
-        code = PulsarSearch::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
+        code = SNR::getSNRDMsSamplesOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
       } else {
-        code = PulsarSearch::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
+        code = SNR::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
       }
 
       if ( reInit ) {

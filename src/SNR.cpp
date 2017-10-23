@@ -15,7 +15,7 @@
 
 #include <SNR.hpp>
 
-namespace PulsarSearch {
+namespace SNR {
 
 snrConf::snrConf() : KernelConf(), subbandDedispersion(false) {}
 
@@ -30,7 +30,7 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
   unsigned int nrSamples = 0;
   std::string temp;
   std::string deviceName;
-  PulsarSearch::snrConf * parameters = 0;
+  SNR::snrConf * parameters = 0;
   std::ifstream snrFile;
 
   snrFile.open(snrFilename);
@@ -44,7 +44,7 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
     if ( ! std::isalpha(temp[0]) ) {
       continue;
     }
-    parameters = new PulsarSearch::snrConf();
+    parameters = new SNR::snrConf();
 
     splitPoint = temp.find(" ");
     deviceName = temp.substr(0, splitPoint);
@@ -76,14 +76,14 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
     parameters->setNrItemsD2(isa::utils::castToType< std::string, unsigned int >(temp));
 
     if ( tunedSNR.count(deviceName) == 0 ) {
-      std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * > * externalContainer = new std::map< unsigned int, std::map< unsigned int, PulsarSearch::snrConf * > * >();
-      std::map< unsigned int, PulsarSearch::snrConf * > * internalContainer = new std::map< unsigned int, PulsarSearch::snrConf * >();
+      std::map< unsigned int, std::map< unsigned int, SNR::snrConf * > * > * externalContainer = new std::map< unsigned int, std::map< unsigned int, SNR::snrConf * > * >();
+      std::map< unsigned int, SNR::snrConf * > * internalContainer = new std::map< unsigned int, SNR::snrConf * >();
 
       internalContainer->insert(std::make_pair(nrSamples, parameters));
       externalContainer->insert(std::make_pair(nrDMs, internalContainer));
       tunedSNR.insert(std::make_pair(deviceName, externalContainer));
     } else if ( tunedSNR.at(deviceName)->count(nrDMs) == 0 ) {
-      std::map< unsigned int, PulsarSearch::snrConf * > * internalContainer = new std::map< unsigned int, PulsarSearch::snrConf * >();
+      std::map< unsigned int, SNR::snrConf * > * internalContainer = new std::map< unsigned int, SNR::snrConf * >();
 
       internalContainer->insert(std::make_pair(nrSamples, parameters));
       tunedSNR.at(deviceName)->insert(std::make_pair(nrDMs, internalContainer));
@@ -94,5 +94,5 @@ void readTunedSNRConf(tunedSNRConf & tunedSNR, const std::string & snrFilename) 
   snrFile.close();
 }
 
-} // PulsarSearch
+} // SNR
 

@@ -1,4 +1,5 @@
-// Copyright 2015 Alessio Sclocco <a.sclocco@vu.nl>
+// Copyright 2017 Netherlands Institute for Radio Astronomy (ASTRON)
+// Copyright 2017 Netherlands eScience Center
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONFIGURATION_SNR_HPP
-#define CONFIGURATION_SNR_HPP
+#pragma once
 
 // Define the data types
 typedef float inputDataType;
 std::string inputDataName("float");
-
-#endif // CONFIGURATION_SNR_HPP
 
