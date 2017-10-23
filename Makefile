@@ -34,7 +34,10 @@ clean:
 	-@rm lib/*
 
 install: all
+	-@mkdir -p $(INSTALL_ROOT)/include
 	-@cp include/SNR.hpp $(INSTALL_ROOT)/include
+	-@mkdir -p $(INSTALL_ROOT)/lib
 	-@cp lib/* $(INSTALL_ROOT)/lib
+	-@mkdir -p $(INSTALL_ROOT)/bin
 	-@cp bin/SNRTest $(INSTALL_ROOT)/bin
 	-@cp bin/SNRTuning $(INSTALL_ROOT)/bin
