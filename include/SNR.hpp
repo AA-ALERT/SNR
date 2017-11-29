@@ -128,7 +128,11 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf
     + dataName + " max<%NUM%> = input[(beam * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (dm * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
     "float variance<%NUM%> = 0.0f;\n"
     "float mean<%NUM%> = max<%NUM%>;\n";
-  std::string compute_sTemplate = "item = input[(beam * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (dm * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
+  std::string compute_sTemplate;
+  if ( (nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) != 0 ) {
+    compute_sTemplate += "if ( (sample + <%OFFSET%>) < " + std::to_string(nrSamples) + " ) {\n";
+  }
+  compute_sTemplate += "item = input[(beam * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (dm * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
     "counter<%NUM%> += 1.0f;\n"
     "delta = item - mean<%NUM%>;\n"
     "mean<%NUM%> += delta / counter<%NUM%>;\n"
@@ -137,6 +141,9 @@ template< typename T > std::string * getSNRDMsSamplesOpenCL(const snrConf & conf
     "max<%NUM%> = item;\n"
     "maxSample<%NUM%> = sample + <%OFFSET%>;\n"
     "}\n";
+  if ( (nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) != 0 ) {
+    compute_sTemplate += "}\n";
+  }
   std::string reduce_sTemplate = "delta = mean<%NUM%> - mean0;\n"
     "counter0 += counter<%NUM%>;\n"
     "mean0 = (((counter0 - counter<%NUM%>) * mean0) + (counter<%NUM%> * mean<%NUM%>)) / counter0;\n"
