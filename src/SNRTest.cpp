@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
           wrongPositions++;
         }
         if ( printResults ) {
-          std::cout << outputSNR[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + dm] << " ";
+          std::cout << outputSNR[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + dm] << "," << (control[(beam * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(float))) + (subbandDM * observation.getNrDMs(false, padding / sizeof(float))) + dm].getMax() - control[(beam * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(float))) + (subbandDM * observation.getNrDMs(false, padding / sizeof(float))) + dm].getMean()) / control[(beam * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(float))) + (subbandDM * observation.getNrDMs(false, padding / sizeof(float))) + dm].getStandardDeviation() << " ";
         }
       }
       if ( printResults ) {
