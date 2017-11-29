@@ -129,14 +129,13 @@ int main(int argc, char * argv[]) {
     std::cout << "# nrBeams nrDMs nrSamples *configuration* GB/s time stdDeviation COV" << std::endl << std::endl;
   }
 
-  for ( unsigned int threads = minThreads; threads <= maxThreads; ) {
+  for ( unsigned int threads = minThreads; threads <= maxThreads; threads++ ) {
     conf.setNrThreadsD0(threads);
     if ( DMsSamples ) {
-      threads *= 2;
-    } else {
-      threads++;
+      if ( (threads % 2) != 0 ) {
+        continue;
+      }
     }
-
     for ( unsigned int itemsPerThread = 1; (itemsPerThread * 5) < maxItems; itemsPerThread++ ) {
       if ( DMsSamples ) {
         if ( observation.getNrSamplesPerBatch() % (itemsPerThread * conf.getNrThreadsD0()) != 0 ) {
