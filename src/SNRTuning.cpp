@@ -137,7 +137,7 @@ int main(int argc, char * argv[]) {
       threads++;
     }
 
-    for ( unsigned int itemsPerThread = 1; (itemsPerThread * 4) < maxItems; itemsPerThread++ ) {
+    for ( unsigned int itemsPerThread = 1; (itemsPerThread * 5) < maxItems; itemsPerThread++ ) {
       if ( DMsSamples ) {
         if ( observation.getNrSamplesPerBatch() % (itemsPerThread * conf.getNrThreadsD0()) != 0 ) {
           continue;
