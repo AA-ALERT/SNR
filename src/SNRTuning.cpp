@@ -37,7 +37,7 @@
 void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * input, cl::Buffer * input_d, cl::Buffer * outputSNR_d, const uint64_t outputSNR_size, cl::Buffer * outputSample_d, const uint64_t outputSample_size);
 
 int main(int argc, char * argv[]) {
-  bool reInit = true;
+  bool reinitializeDeviceMemory = true;
   bool DMsSamples = false;
   bool bestMode = false;
   unsigned int padding = 0;
@@ -165,7 +165,7 @@ int main(int argc, char * argv[]) {
         code = SNR::getSNRSamplesDMsOpenCL< inputDataType >(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
       }
 
-      if ( reInit ) {
+      if ( reinitializeDeviceMemory ) {
         delete clQueues;
         clQueues = new std::vector< std::vector< cl::CommandQueue > >();
         isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
@@ -174,7 +174,7 @@ int main(int argc, char * argv[]) {
         } catch ( cl::Error & err ) {
           return -1;
         }
-        reInit = false;
+        reinitializeDeviceMemory = false;
       }
       try {
         if ( DMsSamples ) {
@@ -222,7 +222,7 @@ int main(int argc, char * argv[]) {
         if ( err.err() == -4 || err.err() == -61 ) {
           return -1;
         }
-        reInit = true;
+        reinitializeDeviceMemory = true;
         break;
       }
       delete kernel;
