@@ -248,9 +248,6 @@ int main(int argc, char *argv[]) {
   }
 
   for ( unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++ ) {
-    if ( printResults ) {
-      std::cout << "Beam: " << beam << std::endl;
-    }
     for ( unsigned int subbandDM = 0; subbandDM < observation.getNrDMs(true); subbandDM++ ) {
       for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
         if ( !isa::utils::same(outputSNR[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandDM * observation.getNrDMs()) + dm], static_cast<float>((control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMax() - control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMean()) / control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getStandardDeviation()), static_cast<float>(1e-3)) ) {
@@ -259,16 +256,20 @@ int main(int argc, char *argv[]) {
         if ( outputSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) ) {
           wrongPositions++;
         }
-        if ( printResults ) {
-          std::cout << outputSNR[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandDM * observation.getNrDMs()) + dm] << "," << (control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMax() - control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMean()) / control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getStandardDeviation() << " ";
-        }
-      }
-      if ( printResults ) {
-        std::cout << std::endl;
-      }
     }
   }
+  
   if ( printResults ) {
+    for ( unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++ ) {
+      std::cout << "Beam: " << beam << std::endl;
+      for ( unsigned int subbandDM = 0; subbandDM < observation.getNrDMs(true); subbandDM++ ) {
+        for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
+          std::cout << outputSNR[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandDM * observation.getNrDMs()) + dm] << "," << (control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMax() - control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMean()) / control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getStandardDeviation() << " ; ";
+          std::cout << outputSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) << "," << maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) << "  ";
+        }
+        std::cout << std::endl;
+        }
+      }
     std::cout << std::endl;
   }
 
