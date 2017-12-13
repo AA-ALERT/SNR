@@ -256,6 +256,7 @@ int main(int argc, char *argv[]) {
         if ( outputSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) ) {
           wrongPositions++;
         }
+      }
     }
   }
   
