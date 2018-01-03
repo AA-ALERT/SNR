@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(SNR VERSION 2.1)
+project(SNR VERSION 3.1)
 include(GNUInstallDirs)
 
 add_library(snr SHARED
