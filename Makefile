@@ -13,6 +13,13 @@ else
 	CFLAGS += -O3 -g0
 endif
 
+ifdef PSRDADA
+	DADA_DEPS := $(PSRDADA)/src/dada_hdu.o $(PSRDADA)/src/ipcbuf.o $(PSRDADA)/src/ipcio.o $(PSRDADA)/src/ipcutil.o $(PSRDADA)/src/ascii_header.o $(PSRDADA)/src/multilog.o $(PSRDADA)/src/tmutil.o
+	CFLAGS += -DHAVE_PSRDADA
+else
+	DADA_DEPS :=
+endif
+
 all: bin/SNR.o bin/SNRTest bin/SNRTuning
 	-@mkdir -p lib
 	$(CC) -o lib/libSNR.so -shared -Wl,-soname,libSNR.so bin/SNR.o $(CFLAGS)
@@ -23,11 +30,11 @@ bin/SNR.o: include/SNR.hpp src/SNR.cpp
 
 bin/SNRTest: src/SNRTest.cpp
 	-@mkdir -p bin
-	$(CC) -o bin/SNRTest src/SNRTest.cpp bin/SNR.o $(INCLUDES) $(LIBS) $(LDFLAGS) $(CFLAGS)
+	$(CC) -o bin/SNRTest src/SNRTest.cpp bin/SNR.o $(DADA_DEPS) $(INCLUDES) $(LIBS) $(LDFLAGS) $(CFLAGS)
 
 bin/SNRTuning: src/SNRTuning.cpp
 	-@mkdir -p bin
-	$(CC) -o bin/SNRTuning src/SNRTuning.cpp bin/SNR.o $(INCLUDES) $(LIBS) $(LDFLAGS) $(CFLAGS)
+	$(CC) -o bin/SNRTuning src/SNRTuning.cpp bin/SNR.o $(DADA_DEPS) $(INCLUDES) $(LIBS) $(LDFLAGS) $(CFLAGS)
 
 clean:
 	-@rm bin/*
