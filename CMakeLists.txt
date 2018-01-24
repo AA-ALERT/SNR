@@ -30,14 +30,14 @@ add_executable(SNRTesting
   src/SNRTest.cpp
 )
 target_include_directories(SNRTesting PRIVATE include)
-target_link_libraries(SNRTesting snr isa_utils isa_opencl astrodata OpenCL)
+target_link_libraries(SNRTesting ${TARGET_LINK_LIBRARIES})
 
 # SNRTuning
 add_executable(SNRTuning
   src/SNRTuning.cpp
 )
 target_include_directories(SNRTuning PRIVATE include)
-target_link_libraries(SNRTuning snr isa_utils isa_opencl astrodata OpenCL)
+target_link_libraries(SNRTuning ${TARGET_LINK_LIBRARIES})
 
 install(TARGETS snr SNRTesting SNRTuning
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
