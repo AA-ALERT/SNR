@@ -30,7 +30,7 @@
 #include <Kernel.hpp>
 #include <utils.hpp>
 #include <SNR.hpp>
-#include <Statistics.hpp>
+#include <Stats.hpp>
 
 
 int main(int argc, char *argv[]) {
@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Run OpenCL kernel and CPU control
-  std::vector< isa::utils::Statistics< inputDataType > > control(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs());
+  std::vector< isa::utils::Stats< inputDataType > > control(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs());
   try {
     cl::NDRange global;
     cl::NDRange local;
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
   for ( unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++ ) {
     for ( unsigned int subbandDM = 0; subbandDM < observation.getNrDMs(true); subbandDM++ ) {
       for ( unsigned int dm = 0; dm < observation.getNrDMs(); dm++ ) {
-        control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm] = isa::utils::Statistics< inputDataType >();
+        control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm] = isa::utils::Stats< inputDataType >();
       }
     }
     if ( DMsSamples ) {
