@@ -31,7 +31,6 @@
 #include <SNR.hpp>
 #include <utils.hpp>
 #include <Timer.hpp>
-#include <Stats.hpp>
 
 
 void initializeDeviceMemoryD(cl::Context & clContext, cl::CommandQueue * clQueue, std::vector< inputDataType > * input, cl::Buffer * input_d, cl::Buffer * outputSNR_d, const uint64_t outputSNR_size, cl::Buffer * outputSample_d, const uint64_t outputSample_size);
