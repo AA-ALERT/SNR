@@ -14,6 +14,11 @@ if($ENV{PSRDADA})
   set(TARGET_LINK_LIBRARIES ${TARGET_LINK_LIBRARIES} psrdada cudart)
 endif()
 
+set(SNR_HEADER
+  include/configuration.hpp
+  include/SNR.hpp
+)
+
 # libsnr
 add_library(snr SHARED
   src/SNR.cpp
@@ -28,6 +33,7 @@ target_include_directories(snr PRIVATE include)
 # SNRTesting
 add_executable(SNRTesting
   src/SNRTest.cpp
+  ${SNR_HEADER}
 )
 target_include_directories(SNRTesting PRIVATE include)
 target_link_libraries(SNRTesting PRIVATE ${TARGET_LINK_LIBRARIES})
@@ -35,6 +41,7 @@ target_link_libraries(SNRTesting PRIVATE ${TARGET_LINK_LIBRARIES})
 # SNRTuning
 add_executable(SNRTuning
   src/SNRTuning.cpp
+  ${SNR_HEADER}
 )
 target_include_directories(SNRTuning PRIVATE include)
 target_link_libraries(SNRTuning PRIVATE ${TARGET_LINK_LIBRARIES})
