@@ -56,6 +56,7 @@ typedef std::map<std::string, std::map<unsigned int, std::map<unsigned int, SNR:
  ** @brief Generate OpenCL code for the "max" operation.
  ** The "max" operation is used to find, for all dedispersed time series, the element with highest intensity.
  */
+template <typename DataType>
 std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
 template <typename DataType>
 std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
@@ -78,6 +79,7 @@ inline void snrConf::setSubbandDedispersion(bool subband)
     subbandDedispersion = subband;
 }
 
+template <typename DataType>
 std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
 {
     std::string *code = nullptr;
