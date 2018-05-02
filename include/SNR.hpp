@@ -156,7 +156,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         std::string *temp;
         std::string itemString = std::to_string(item);
         std::string itemOffsetString = std::to_string(item * conf.getNrThreadsD0());
-        temp = isa::utils::replace(localVariablesTemplate, "<%ITEM_NUMBER%>", itemString);
+        temp = isa::utils::replace(&localVariablesTemplate, "<%ITEM_NUMBER%>", itemString);
         if ( item == 0 ) {
             temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
         } else {
@@ -165,9 +165,9 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         localVariables.append(*temp);
         delete temp;
         if ( (nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) == 0 ) {
-            temp = isa::utils::replace(localComputeNoCheckTemplate, "<%ITEM_NUMBER%>", itemString);
+            temp = isa::utils::replace(&localComputeNoCheckTemplate, "<%ITEM_NUMBER%>", itemString);
         } else {
-            temp = isa::utils::replace(localComputeCheckTemplate, "<%ITEM_NUMBER%>", itemString);
+            temp = isa::utils::replace(&localComputeCheckTemplate, "<%ITEM_NUMBER%>", itemString);
         }
         if ( item == 0 ) {
             temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
@@ -177,7 +177,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         localCompute.append(*temp);
         delete temp;
         if ( item > 0 ) {
-            temp = isa::utils::replace(localReduceTemplate, "<%ITEM_NUMBER%>", itemString);
+            temp = isa::utils::replace(&localReduceTemplate, "<%ITEM_NUMBER%>", itemString);
             localReduce.append(*temp);
             delete temp;
         }
