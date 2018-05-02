@@ -388,6 +388,7 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
                                                                               "unsigned int maxSample<%NUM%> = 0;\n"
                                                                               "float variance<%NUM%> = 0.0f;\n"
                                                                               "float mean<%NUM%> = max<%NUM%>;\n";
+    std::string compute_sTemplate = "item = input[(beam * " + std::to_string(nrSamples * isa::utils::pad(nrDMs, padding / sizeof(T))) + ") + (sample * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(T))) + ")  + (dm + <%OFFSET%>)];\n"
                                                                                                                                                                                                                          "counter<%NUM%> += 1.0f;\n"
                                                                                                                                                                                                                          "delta = item - mean<%NUM%>;\n"
                                                                                                                                                                                                                          "mean<%NUM%> += delta / counter<%NUM%>;\n"
