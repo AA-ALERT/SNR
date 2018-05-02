@@ -85,7 +85,7 @@ std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, cons
     std::string *code = nullptr;
 
     if ( ordering == DataOrdering::DMsSamples ) {
-        code = getMaxDMsSamplesOpenCL(conf, dataName, observation, downsampling, padding);
+        code = getMaxDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
     }
     return code;
 }
