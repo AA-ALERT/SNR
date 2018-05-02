@@ -48,7 +48,11 @@ class snrConf : public isa::OpenCL::KernelConf
 /**
  ** @brief Order of the underlying data.
  */
-enum DataOrdering {DMsSamples, SamplesDMs};
+enum DataOrdering
+{
+    DMsSamples,
+    SamplesDMs
+};
 
 typedef std::map<std::string, std::map<unsigned int, std::map<unsigned int, SNR::snrConf *> *> *> tunedSNRConf;
 
@@ -82,9 +86,10 @@ inline void snrConf::setSubbandDedispersion(bool subband)
 template <typename DataType>
 std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
 {
-    std::string *code = nullptr;
+    std::string *code = 0;
 
-    if ( ordering == DataOrdering::DMsSamples ) {
+    if (ordering == DataOrdering::DMsSamples)
+    {
         code = getMaxDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
     }
     return code;
@@ -96,10 +101,13 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     std::string *code = new std::string();
     unsigned int nrSamples = 0;
     unsigned int nrDMs = 0;
-    if ( conf.getSubbandDedispersion() ) {
+    if (conf.getSubbandDedispersion())
+    {
         nrSamples = observation.getNrSamplesPerBatch(true) / downsampling;
         nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
-    } else {
+    }
+    else
+    {
         nrSamples = observation.getNrSamplesPerBatch() / downsampling;
         nrDMs = observation.getNrDMs();
     }
@@ -122,7 +130,9 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "for ( unsigned int value_id = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
         "if ( (value_id < threshold) && (reduction_value[value_id + threshold] > value_0) ) {\n"
         "value_0 = reduction_value[value_id + threshold];\n"
+        "reduction_value[value_id] = value_0;\n"
         "index_0 = reduction_index[value_id + threshold];\n"
+        "reduction_index[value_id] = index_0;\n"
         "}\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
         "}\n"
@@ -152,31 +162,42 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     std::string localVariables;
     std::string localCompute;
     std::string localReduce;
-    for ( unsigned int item = 0; item < conf.getNrItemsD0(); item++ ) {
+    for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
+    {
         std::string *temp;
         std::string itemString = std::to_string(item);
         std::string itemOffsetString = std::to_string(item * conf.getNrThreadsD0());
         temp = isa::utils::replace(&localVariablesTemplate, "<%ITEM_NUMBER%>", itemString);
-        if ( item == 0 ) {
+        if (item == 0)
+        {
             temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
-        } else {
+        }
+        else
+        {
             temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
         }
         localVariables.append(*temp);
         delete temp;
-        if ( (nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) == 0 ) {
+        if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) == 0)
+        {
             temp = isa::utils::replace(&localComputeNoCheckTemplate, "<%ITEM_NUMBER%>", itemString);
-        } else {
+        }
+        else
+        {
             temp = isa::utils::replace(&localComputeCheckTemplate, "<%ITEM_NUMBER%>", itemString);
         }
-        if ( item == 0 ) {
+        if (item == 0)
+        {
             temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
-        } else {
+        }
+        else
+        {
             temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
         }
         localCompute.append(*temp);
         delete temp;
-        if ( item > 0 ) {
+        if (item > 0)
+        {
             temp = isa::utils::replace(&localReduceTemplate, "<%ITEM_NUMBER%>", itemString);
             localReduce.append(*temp);
             delete temp;
@@ -191,9 +212,9 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 template <typename T>
 std::string *getSNRDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding)
 {
-    unsigned int nrDMs = 0;
     std::string *code = new std::string();
-
+    unsigned int nrDMs = 0;
+    
     if (conf.getSubbandDedispersion())
     {
         nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
@@ -202,98 +223,86 @@ std::string *getSNRDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     {
         nrDMs = observation.getNrDMs();
     }
-    // Begin kernel's template
     *code = "__kernel void snrDMsSamples" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict input, __global float * const restrict outputSNR, __global unsigned int * const restrict outputSample) {\n"
-                                                                                                        "unsigned int dm = get_group_id(1);\n"
-                                                                                                        "unsigned int beam = get_group_id(2);\n"
-                                                                                                        "float delta = 0.0f;\n"
-                                                                                                        "__local float reductionCOU[" +
-            std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(float))) + "];\n"
-                                                                                              "__local " +
-            dataName + " reductionMAX[" + std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(T))) + "];\n"
-                                                                                                                        "__local unsigned int reductionSAM[" +
-            std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(unsigned int))) + "];\n"
-                                                                                                     "__local float reductionMEA[" +
-            std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(float))) + "];\n"
-                                                                                              "__local float reductionVAR[" +
-            std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(float))) + "];\n"
-                                                                                              "<%DEF%>"
-                                                                                              "\n"
-                                                                                              "// Compute phase\n"
-                                                                                              "for ( unsigned int sample = get_local_id(0) + " +
-            std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; sample < " + std::to_string(nrSamples) + "; sample += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n" + dataName + " item = 0;\n"
-                                                                                                                                                                                                                           "<%COMPUTE%>"
-                                                                                                                                                                                                                           "}\n"
-                                                                                                                                                                                                                           "// In-thread reduce\n"
-                                                                                                                                                                                                                           "<%REDUCE%>"
-                                                                                                                                                                                                                           "// Local memory store\n"
-                                                                                                                                                                                                                           "reductionCOU[get_local_id(0)] = counter0;\n"
-                                                                                                                                                                                                                           "reductionMAX[get_local_id(0)] = max0;\n"
-                                                                                                                                                                                                                           "reductionSAM[get_local_id(0)] = maxSample0;\n"
-                                                                                                                                                                                                                           "reductionMEA[get_local_id(0)] = mean0;\n"
-                                                                                                                                                                                                                           "reductionVAR[get_local_id(0)] = variance0;\n"
-                                                                                                                                                                                                                           "barrier(CLK_LOCAL_MEM_FENCE);\n"
-                                                                                                                                                                                                                           "// Reduce phase\n"
-                                                                                                                                                                                                                           "unsigned int threshold = " +
-            std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
-                                                        "for ( unsigned int sample = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
-                                                        "if ( sample < threshold ) {\n"
-                                                        "delta = reductionMEA[sample + threshold] - mean0;\n"
-                                                        "counter0 += reductionCOU[sample + threshold];\n"
-                                                        "mean0 = ((reductionCOU[sample] * mean0) + (reductionCOU[sample + threshold] * reductionMEA[sample + threshold])) / counter0;\n"
-                                                        "variance0 += reductionVAR[sample + threshold] + ((delta * delta) * ((reductionCOU[sample] * reductionCOU[sample + threshold]) / counter0));\n"
-                                                        "if ( reductionMAX[sample + threshold] - max0 > 0.0f ) {\n"
-                                                        "max0 = reductionMAX[sample + threshold];\n"
-                                                        "maxSample0 = reductionSAM[sample + threshold];\n"
-                                                        "}\n"
-                                                        "reductionCOU[sample] = counter0;\n"
-                                                        "reductionMAX[sample] = max0;\n"
-                                                        "reductionSAM[sample] = maxSample0;\n"
-                                                        "reductionMEA[sample] = mean0;\n"
-                                                        "reductionVAR[sample] = variance0;\n"
-                                                        "}\n"
-                                                        "barrier(CLK_LOCAL_MEM_FENCE);\n"
-                                                        "}\n"
-                                                        "// Store\n"
-                                                        "if ( get_local_id(0) == 0 ) {\n"
-                                                        "outputSNR[(beam * " +
-            std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + dm] = (max0 - mean0) / native_sqrt(variance0 * " + std::to_string(1.0f / (nrSamples - 1)) + "f);\n"
-                                                                                                                                                                               "outputSample[(beam * " +
-            std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + dm] = maxSample0;\n"
-                                                                                     "}\n"
-                                                                                     "}\n";
-    std::string def_sTemplate = "float counter<%NUM%> = 1.0f;\n"
-                                "unsigned int maxSample<%NUM%> = get_local_id(0) + <%OFFSET%>;\n" +
-                                dataName + " max<%NUM%> = input[(beam * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (dm * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
-                                                                                                                                                                                                                                       "float variance<%NUM%> = 0.0f;\n"
-                                                                                                                                                                                                                                       "float mean<%NUM%> = max<%NUM%>;\n";
+        "float delta = 0.0f;\n"
+        "<%DEF%>"
+        "__local float reductionCOU[" + std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(float))) + "];\n"
+        "__local " + dataName + " reductionMAX[" + std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(T))) + "];\n"
+        "__local unsigned int reductionSAM[" + std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(unsigned int))) + "];\n"
+        "__local float reductionMEA[" + std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(float))) + "];\n"
+        "__local float reductionVAR[" + std::to_string(isa::utils::pad(conf.getNrThreadsD0(), padding / sizeof(float))) + "];\n"
+        "\n"
+        "// Compute phase\n"
+        "for ( unsigned int sample = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; sample < " + std::to_string(nrSamples) + "; sample += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
+        + dataName + " item = 0;\n"
+        "<%COMPUTE%>"
+        "}\n"
+        "// In-thread reduce\n"
+        "<%REDUCE%>"
+        "// Local memory store\n"
+        "reductionCOU[get_local_id(0)] = counter0;\n"
+        "reductionMAX[get_local_id(0)] = max0;\n"
+        "reductionSAM[get_local_id(0)] = maxSample0;\n"
+        "reductionMEA[get_local_id(0)] = mean0;\n"
+        "reductionVAR[get_local_id(0)] = variance0;\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "// Reduce phase\n"
+        "unsigned int threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
+        "for ( unsigned int sample = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
+        "if ( sample < threshold ) {\n"
+        "delta = reductionMEA[sample + threshold] - mean0;\n"
+        "counter0 += reductionCOU[sample + threshold];\n"
+        "mean0 = ((reductionCOU[sample] * mean0) + (reductionCOU[sample + threshold] * reductionMEA[sample + threshold])) / counter0;\n"
+        "variance0 += reductionVAR[sample + threshold] + ((delta * delta) * ((reductionCOU[sample] * reductionCOU[sample + threshold]) / counter0));\n"
+        "if ( reductionMAX[sample + threshold] > max0 ) {\n"
+        "max0 = reductionMAX[sample + threshold];\n"
+        "maxSample0 = reductionSAM[sample + threshold];\n"
+        "}\n"
+        "reductionCOU[sample] = counter0;\n"
+        "reductionMAX[sample] = max0;\n"
+        "reductionSAM[sample] = maxSample0;\n"
+        "reductionMEA[sample] = mean0;\n"
+        "reductionVAR[sample] = variance0;\n"
+        "}\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "}\n"
+        "// Store\n"
+        "if ( get_local_id(0) == 0 ) {\n"
+        "outputSNR[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + get_group_id(1)] = (max0 - mean0) / native_sqrt(variance0 * " + std::to_string(1.0f / (nrSamples - 1)) + "f);\n"
+        "outputSample[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = maxSample0;\n"
+        "}\n"
+        "}\n";
+    std::string def_sTemplate = dataName + " max<%NUM%> = input[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_local_id(0) + <%OFFSET%>)];\n"
+        "unsigned int maxSample<%NUM%> = get_local_id(0) + <%OFFSET%>;\n"
+        "float counter<%NUM%> = 1.0f;\n"
+        "float variance<%NUM%> = 0.0f;\n"
+        "float mean<%NUM%> = max<%NUM%>;\n";
     std::string compute_sTemplate;
     if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) != 0)
     {
         compute_sTemplate += "if ( (sample + <%OFFSET%>) < " + std::to_string(nrSamples) + " ) {\n";
     }
-    compute_sTemplate += "item = input[(beam * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (dm * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
-                                                                                                                                                                                                              "counter<%NUM%> += 1.0f;\n"
-                                                                                                                                                                                                              "delta = item - mean<%NUM%>;\n"
-                                                                                                                                                                                                              "mean<%NUM%> += delta / counter<%NUM%>;\n"
-                                                                                                                                                                                                              "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
-                                                                                                                                                                                                              "if ( item - max<%NUM%> > 0.0f ) {\n"
-                                                                                                                                                                                                              "max<%NUM%> = item;\n"
-                                                                                                                                                                                                              "maxSample<%NUM%> = sample + <%OFFSET%>;\n"
-                                                                                                                                                                                                              "}\n";
+    compute_sTemplate += "item = input[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(T))) + ") + (sample + <%OFFSET%>)];\n"
+        "counter<%NUM%> += 1.0f;\n"
+        "delta = item - mean<%NUM%>;\n"
+        "mean<%NUM%> += delta / counter<%NUM%>;\n"
+        "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
+        "if ( item > max<%NUM%> ) {\n"
+        "max<%NUM%> = item;\n"
+        "maxSample<%NUM%> = sample + <%OFFSET%>;\n"
+        "}\n";
     if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) != 0)
     {
         compute_sTemplate += "}\n";
     }
     std::string reduce_sTemplate = "delta = mean<%NUM%> - mean0;\n"
-                                   "counter0 += counter<%NUM%>;\n"
-                                   "mean0 = (((counter0 - counter<%NUM%>) * mean0) + (counter<%NUM%> * mean<%NUM%>)) / counter0;\n"
-                                   "variance0 += variance<%NUM%> + ((delta * delta) * (((counter0 - counter<%NUM%>) * counter<%NUM%>) / counter0));\n"
-                                   "if ( max<%NUM%> - max0 > 0.0f ) {\n"
-                                   "max0 = max<%NUM%>;\n"
-                                   "maxSample0 = maxSample<%NUM%>;\n"
-                                   "}\n";
-    // End kernel's template
+        "counter0 += counter<%NUM%>;\n"
+        "mean0 = (((counter0 - counter<%NUM%>) * mean0) + (counter<%NUM%> * mean<%NUM%>)) / counter0;\n"
+        "variance0 += variance<%NUM%> + ((delta * delta) * (((counter0 - counter<%NUM%>) * counter<%NUM%>) / counter0));\n"
+        "if ( max<%NUM%> > max0 ) {\n"
+        "max0 = max<%NUM%>;\n"
+        "maxSample0 = maxSample<%NUM%>;\n"
+        "}\n";
 
     std::string *def_s = new std::string();
     std::string *compute_s = new std::string();
@@ -366,7 +375,6 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
     *code = "__kernel void snrSamplesDMs" + std::to_string(nrDMs) + "(__global const " + dataName + " * const restrict input, __global float * const restrict outputSNR, __global unsigned int * const restrict outputSample) {\n"
                                                                                                     "unsigned int dm = (get_group_id(0) * " +
             std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
-                                                                          "unsigned int beam = get_group_id(1);\n"
                                                                           "float delta = 0.0f;\n"
                                                                           "<%DEF%>"
                                                                           "\n"
@@ -376,11 +384,10 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
                                                                         "}\n"
                                                                         "<%STORE%>"
                                                                         "}\n";
-    std::string def_sTemplate = "float counter<%NUM%> = 1.0f;\n" + dataName + " max<%NUM%> = input[dm + <%OFFSET%>];\n"
+    std::string def_sTemplate = "float counter<%NUM%> = 1.0f;\n" + dataName + " max<%NUM%> = input[get_group_id(1) + <%OFFSET%>];\n"
                                                                               "unsigned int maxSample<%NUM%> = 0;\n"
                                                                               "float variance<%NUM%> = 0.0f;\n"
                                                                               "float mean<%NUM%> = max<%NUM%>;\n";
-    std::string compute_sTemplate = "item = input[(beam * " + std::to_string(nrSamples * isa::utils::pad(nrDMs, padding / sizeof(T))) + ") + (sample * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(T))) + ")  + (dm + <%OFFSET%>)];\n"
                                                                                                                                                                                                                          "counter<%NUM%> += 1.0f;\n"
                                                                                                                                                                                                                          "delta = item - mean<%NUM%>;\n"
                                                                                                                                                                                                                          "mean<%NUM%> += delta / counter<%NUM%>;\n"
@@ -389,7 +396,6 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
                                                                                                                                                                                                                          "max<%NUM%> = item;\n"
                                                                                                                                                                                                                          "maxSample<%NUM%> = sample;\n"
                                                                                                                                                                                                                          "}\n";
-    std::string store_sTemplate = "outputSNR[(beam * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
     // End kernel's template
 
     std::string *def_s = new std::string();
