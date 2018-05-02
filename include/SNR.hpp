@@ -397,6 +397,7 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
                                                                                                                                                                                                                          "max<%NUM%> = item;\n"
                                                                                                                                                                                                                          "maxSample<%NUM%> = sample;\n"
                                                                                                                                                                                                                          "}\n";
+    std::string store_sTemplate = "outputSNR[(beam * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
     // End kernel's template
 
     std::string *def_s = new std::string();
