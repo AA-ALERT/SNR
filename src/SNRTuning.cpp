@@ -152,6 +152,10 @@ int main(int argc, char * argv[]) {
         }
       }
       conf.setNrItemsD0(itemsPerThread);
+      if ( conf.getNrItemsD0() * conf.getNrItemsD0() > observation.getNrSamplesPerBatch() )
+      {
+        continue;
+      }
 
       // Generate kernel
       double gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(float)) + (observation.getNrSynthesizedBeams() * static_cast< uint64_t >(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(unsigned int)));
