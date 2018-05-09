@@ -44,6 +44,7 @@ class snrConf : public isa::OpenCL::KernelConf
   private:
     bool subbandDedispersion;
 };
+typedef std::map<std::string, std::map<unsigned int, std::map<unsigned int, SNR::snrConf *> *> *> tunedSNRConf;
 
 /**
  ** @brief Order of the underlying data.
@@ -54,7 +55,15 @@ enum DataOrdering
     SamplesDMs
 };
 
-typedef std::map<std::string, std::map<unsigned int, std::map<unsigned int, SNR::snrConf *> *> *> tunedSNRConf;
+/**
+ ** @brief Kernel to test or tune.
+ */
+enum Kernel
+{
+    SNR,
+    Max
+};
+
 
 /**
  ** @brief Generate OpenCL code for the "max" operation.
