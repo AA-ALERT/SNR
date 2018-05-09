@@ -152,7 +152,7 @@ int main(int argc, char * argv[]) {
         }
       }
       conf.setNrItemsD0(itemsPerThread);
-      if ( conf.getNrItemsD0() * conf.getNrItemsD0() > observation.getNrSamplesPerBatch() )
+      if ( (conf.getNrThreadsD0() * conf.getNrItemsD0()) > observation.getNrSamplesPerBatch() )
       {
         continue;
       }
