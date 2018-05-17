@@ -403,4 +403,5 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
     {
         std::cout << std::endl;
     }
+    return 0;
 }
