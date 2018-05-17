@@ -84,13 +84,14 @@ int main(int argc, char *argv[])
         conf.setNrItemsD0(args.getSwitchArgument<unsigned int>("-itemsD0"));
         conf.setSubbandDedispersion(args.getSwitch("-subband"));
         observation.setNrSynthesizedBeams(args.getSwitchArgument<unsigned int>("-beams"));
-        observation.setNrSamplesPerBatch(args.getSwitchArgument<unsigned int>("-samples"));
         if (conf.getSubbandDedispersion())
         {
+            observation.setNrSamplesPerBatch(args.getSwitchArgument<unsigned int>("-samples"), true);
             observation.setDMRange(args.getSwitchArgument<unsigned int>("-subbanding_dms"), 0.0f, 0.0f, true);
         }
         else
         {
+            observation.setNrSamplesPerBatch(args.getSwitchArgument<unsigned int>("-samples"));
             observation.setDMRange(1, 0.0f, 0.0f, true);
         }
         observation.setDMRange(args.getSwitchArgument<unsigned int>("-dms"), 0.0, 0.0);
