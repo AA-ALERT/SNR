@@ -126,7 +126,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local unsigned int reduction_index[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "\n"
-        "for ( unsigned int value_id = get_local_id(0)) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
+        "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
         + dataName + " value;\n"
         "\n"
         "<%LOCAL_COMPUTE%>"
