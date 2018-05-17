@@ -127,8 +127,8 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     // Allocate memory
     std::vector<inputDataType> input;
     std::vector<float> output;
-    std::vector<unsigned int> outputSampleSNR;
-    cl::Buffer input_d, output_d, outputSampleSNR_d;
+    std::vector<unsigned int> outputIndex;
+    cl::Buffer input_d, output_d, outputIndex_d;
 
     if (ordering == SNR::DataOrdering::DMsSamples)
     {
@@ -139,18 +139,12 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         input.resize(observation.getNrSynthesizedBeams() * observation.getNrSamplesPerBatch() * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(inputDataType)));
     }
     output.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float)));
-    if (kernelUnderTest == SNR::Kernel::SNR)
-    {
-        outputSampleSNR.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
-    }
+    outputIndex.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
     try
     {
         input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
         output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(float), 0, 0);
-        if (kernelUnderTest == SNR::Kernel::SNR)
-        {
-            outputSampleSNR_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputSampleSNR.size() * sizeof(unsigned int), 0, 0);
-        }
+        outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
     }
     catch (cl::Error &err)
     {
@@ -320,25 +314,12 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
             global = cl::NDRange((observation.getNrDMs(true) * observation.getNrDMs()) / conf.getNrItemsD0(), observation.getNrSynthesizedBeams());
             local = cl::NDRange(conf.getNrThreadsD0(), 1);
         }
-
-        if (kernelUnderTest == SNR::Kernel::SNR)
-        {
-            kernel->setArg(0, input_d);
-            kernel->setArg(1, output_d);
-            kernel->setArg(2, outputSampleSNR_d);
-        }
-        else
-        {
-            kernel->setArg(0, input_d);
-            kernel->setArg(1, output_d);
-        }
-
+        kernel->setArg(0, input_d);
+        kernel->setArg(1, output_d);
+        kernel->setArg(2, outputIndex_d);
         clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
         clQueues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(float), reinterpret_cast<void *>(output.data()));
-        if (kernelUnderTest == SNR::Kernel::SNR)
-        {
-            clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputSampleSNR_d, CL_TRUE, 0, outputSampleSNR.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputSampleSNR.data()));
-        }
+        clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
     }
     catch (cl::Error &err)
     {
@@ -397,7 +378,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                     {
                         wrongSamples++;
                     }
-                    if (outputSampleSNR.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm))
+                    if (outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm))
                     {
                         wrongPositions++;
                     }
@@ -407,6 +388,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                     if (!isa::utils::same(output[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandDM * observation.getNrDMs()) + dm], static_cast<float>(input[(beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (subbandDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm)]), static_cast<float>(1e-2)))
                     {
                         wrongSamples++;
+                    }
+                    if (outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm))
+                    {
+                        wrongPositions++;
                     }
                 }
             }
@@ -423,10 +408,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
                 {
                     std::cout << output[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandDM * observation.getNrDMs()) + dm] << "," << (control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMax() - control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getMean()) / control[(beam * observation.getNrDMs(true) * observation.getNrDMs()) + (subbandDM * observation.getNrDMs()) + dm].getStandardDeviation() << " ; ";
-                    if (kernelUnderTest == SNR::Kernel::SNR)
-                    {
-                        std::cout << outputSampleSNR.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) << "," << maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) << "  ";
-                    }
+                    std::cout << outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) << "," << maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandDM * observation.getNrDMs()) + dm) << "  ";
                 }
                 std::cout << std::endl;
             }
