@@ -303,7 +303,7 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
             {
                 for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / stepSize; step++)
                 {
-                    std::vector<DataType> localArray(stepSize);
+                    std::vector<DataType> localArray;
 
                     for (unsigned int sample = 0; sample < stepSize; sample++)
                     {
