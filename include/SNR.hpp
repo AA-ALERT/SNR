@@ -18,6 +18,7 @@
 #include <cmath>
 #include <map>
 #include <fstream>
+#include <algorithm>
 
 #include <Kernel.hpp>
 #include <Observation.hpp>
@@ -29,6 +30,9 @@
 namespace SNR
 {
 
+/**
+ ** @brief Configuration class.
+ */
 class snrConf : public isa::OpenCL::KernelConf
 {
   public:
@@ -61,18 +65,30 @@ enum DataOrdering
 enum Kernel
 {
     SNR,
-    Max
+    Max,
+    MedianOfMedians
 };
 
-
 /**
- ** @brief Generate OpenCL code for the "max" operation.
- ** The "max" operation is used to find, for all dedispersed time series, the element with highest intensity.
+ ** @brief Generate OpenCL code for the "max" kernel.
+ ** The "max" operator is used to find, for all dedispersed time series, the element with highest intensity.
  */
 template <typename DataType>
 std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
 template <typename DataType>
 std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
+/**
+ ** @brief Generate OpenCL code for the median of medians kernel.
+ */
+template <typename DataType>
+std::string *getMedianOfMediansOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding);
+template <typename DataType>
+std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding);
+/**
+ ** @brief CPU control version of median of medians.
+ */
+template <typename DataType>
+void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding);
 // OpenCL SNR
 template <typename T>
 std::string *getSNRDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding);
@@ -110,16 +126,16 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     std::string *code = new std::string();
     unsigned int nrSamples = 0;
     unsigned int nrDMs = 0;
+
     if (conf.getSubbandDedispersion())
     {
-        nrSamples = observation.getNrSamplesPerBatch(true) / downsampling;
         nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
     }
     else
     {
-        nrSamples = observation.getNrSamplesPerBatch() / downsampling;
         nrDMs = observation.getNrDMs();
     }
+        nrSamples = observation.getNrSamplesPerBatch() / downsampling;
     // Generate source code
     *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices) {\n"
         "<%LOCAL_VARIABLES%>"
@@ -216,6 +232,89 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     code = isa::utils::replace(code, "<%LOCAL_COMPUTE%>", localCompute, true);
     code = isa::utils::replace(code, "<%LOCAL_REDUCE%>", localReduce, true);
     return code;
+}
+
+template <typename DataType>
+std::string *getMedianOfMediansOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding)
+{
+    std::string *code = 0;
+
+    if (ordering == DataOrdering::DMsSamples)
+    {
+        code = getMedianOfMediansDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
+    }
+    return code;
+}
+
+template <typename DataType>
+std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding)
+{
+    std::string *code = new std::string();
+    unsigned int nrSamples = 0;
+    unsigned int nrDMs = 0;
+
+    if (conf.getSubbandDedispersion())
+    {
+        nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
+    }
+    else
+    {
+        nrDMs = observation.getNrDMs();
+    }
+    nrSamples = observation.getNrSamplesPerBatch() / downsampling;
+    // Generate source code
+    *code = "__kernel void medianOfMedians_DMsSamples_" + std::to_string(stepSize) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict medians) {\n"
+        "__local " + dataName + " local_data[" + std::to_string(stepSize) + "];\n"
+        "\n"
+        "// Load data in shared memory\n"
+        "for ( unsigned int item = get_local_id(0); item < " + std::to_string(stepSize) + "; item += " + std::to_string(conf.getNrThreadsD0()) + " ) {\n"
+        "local_data[item] = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * " + std::to_string(stepSize) + ") + item];\n"
+        "}\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "// Bubble Sort\n"
+        "for ( unsigned int step = 0; step < " + std::to_string(stepSize) + "; step++ ) {\n"
+        "if ( (get_local_id(0) % 2) == (step % 2) ) {\n"
+        "for ( unsigned int item = get_local_id(0); item < " + std::to_string(stepSize) + " - 1; item += " + std::to_string(conf.getNrThreadsD0()) + " ) {\n"
+        "if ( local_data[item] > local_data[item + 1] ) {\n"
+        "" + dataName + " temp = local_data[item];\n"
+        "local_data[item] = local_data[item + 1];\n"
+        "local_data[item + 1] = temp;\n"
+        "}\n"
+        "}\n"
+        "}\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "}\n"
+        "// Store median\n"
+        "if ( get_local_id(0) == 0 ) {\n"
+        "medians[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(stepSize, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(stepSize, padding / sizeof(DataType)) + ") + get_group_id(0)] = local_data[" + std::to_string(stepSize / 2) + "];\n"
+        "}\n"
+        "}\n";
+    return code;
+}
+
+template <typename DataType>
+void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding)
+{
+    for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
+    {
+        for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
+        {
+            for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
+            {
+                for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / stepSize; step++)
+                {
+                    std::vector<DataType> localArray(stepSize);
+
+                    for (unsigned int sample = 0; sample < stepSize; sample++)
+                    {
+                        localArray.push_back(timeSeries.at((beam * (observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType)))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample));
+                    }
+                    std::sort(localArray.begin(), localArray.end());
+                    medians.at(step) = localArray.at(stepSize / 2);
+                }
+            }
+        }
+    }
 }
 
 template <typename T>
