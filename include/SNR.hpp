@@ -286,7 +286,7 @@ std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::
         "}\n"
         "// Store median\n"
         "if ( get_local_id(0) == 0 ) {\n"
-        "medians[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(stepSize, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(stepSize, padding / sizeof(DataType)) + ") + get_group_id(0)] = local_data[" + std::to_string(stepSize / 2) + "];\n"
+        "medians[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(stepSize, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(stepSize, padding / sizeof(DataType))) + ") + get_group_id(0)] = local_data[" + std::to_string(stepSize / 2) + "];\n"
         "}\n"
         "}\n";
     return code;
@@ -307,10 +307,10 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
 
                     for (unsigned int sample = 0; sample < stepSize; sample++)
                     {
-                        localArray.push_back(timeSeries.at((beam * (observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType)))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample));
+                        localArray.push_back(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample));
                     }
                     std::sort(localArray.begin(), localArray.end());
-                    medians.at(step) = localArray.at(stepSize / 2);
+                    medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
                 }
             }
         }
