@@ -349,15 +349,26 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         cl::NDRange global;
         cl::NDRange local;
 
-        if (ordering == SNR::DataOrdering::DMsSamples)
+        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
         {
-            global = cl::NDRange(conf.getNrThreadsD0(), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
-            local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
+            if (ordering == SNR::DataOrdering::DMsSamples)
+            {
+                global = cl::NDRange(conf.getNrThreadsD0(), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
+                local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
+            }
+            else
+            {
+                global = cl::NDRange((observation.getNrDMs(true) * observation.getNrDMs()) / conf.getNrItemsD0(), observation.getNrSynthesizedBeams());
+                local = cl::NDRange(conf.getNrThreadsD0(), 1);
+            }
         }
         else
         {
-            global = cl::NDRange((observation.getNrDMs(true) * observation.getNrDMs()) / conf.getNrItemsD0(), observation.getNrSynthesizedBeams());
-            local = cl::NDRange(conf.getNrThreadsD0(), 1);
+            if (ordering == SNR::DataOrdering::DMsSamples)
+            {
+                global = cl::NDRange(conf.getNrThreadsD0() * (observation.getNrSamplesPerBatch() / medianStep), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
+                local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
+            }
         }
         kernel->setArg(0, input_d);
         kernel->setArg(1, output_d);
