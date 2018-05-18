@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
     return returnCode;
 }
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0)
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep)
 {
     uint64_t wrongSamples = 0;
     uint64_t wrongPositions = 0;
