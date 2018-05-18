@@ -170,7 +170,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
         output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
-        outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
+        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        {
+            outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
+        }
     }
     catch (cl::Error &err)
     {
@@ -358,10 +361,16 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         }
         kernel->setArg(0, input_d);
         kernel->setArg(1, output_d);
-        kernel->setArg(2, outputIndex_d);
+        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        {
+            kernel->setArg(2, outputIndex_d);
+        }
         clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
         clQueues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(outputDataType), reinterpret_cast<void *>(output.data()));
-        clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
+        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        {
+            clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
+        }
     }
     catch (cl::Error &err)
     {
