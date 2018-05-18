@@ -241,7 +241,7 @@ std::string *getMedianOfMediansOpenCL(const snrConf &conf, const DataOrdering or
 
     if (ordering == DataOrdering::DMsSamples)
     {
-        code = getMedianOfMediansDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
+        code = getMedianOfMediansDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, stepSize, padding);
     }
     return code;
 }
