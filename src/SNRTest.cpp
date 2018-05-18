@@ -336,7 +336,11 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
 
     // Run OpenCL kernel and CPU control
     std::vector<isa::utils::Statistics<inputDataType>> control(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs());
-    std::vector<outputDataType> medians_control(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
+    std::vector<outputDataType> medians_control;
+    if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
+    {
+        medians_control.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
+    }
     try
     {
         cl::NDRange global;
