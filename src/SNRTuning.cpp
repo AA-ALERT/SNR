@@ -67,7 +67,8 @@ int main(int argc, char *argv[])
         {
             kernel = SNR::Kernel::MedianOfMedians;
         }
-        else{
+        else
+        {
             std::cerr << "One switch between -snr -max and -median is required." << std::endl;
             return 1;
         }
@@ -93,6 +94,10 @@ int main(int argc, char *argv[])
         if (kernel != SNR::Kernel::MedianOfMedians)
         {
             maxItems = args.getSwitchArgument<unsigned int>("-max_items");
+        }
+        else
+        {
+            maxItems = 1;
         }
         maxThreads = args.getSwitchArgument<unsigned int>("-max_threads");
         conf.setSubbandDedispersion(args.getSwitch("-subband"));
@@ -127,13 +132,12 @@ int main(int argc, char *argv[])
     if (kernel != SNR::Kernel::MedianOfMedians)
     {
         returnCode = tune(bestMode, nrIterations, minThreads, maxThreads, maxItems, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf);
-
     }
     else
     {
         returnCode = tune(bestMode, nrIterations, minThreads, maxThreads, maxItems, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
     }
-    
+
     return returnCode;
 }
 
@@ -214,7 +218,8 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
     if (!bestMode)
     {
         std::cout << std::fixed << std::endl;
-        std::cout << "# nrBeams nrDMs nrSamples *configuration* GB/s time stdDeviation COV" << std::endl << std::endl;
+        std::cout << "# nrBeams nrDMs nrSamples *configuration* GB/s time stdDeviation COV" << std::endl
+                  << std::endl;
     }
 
     for (unsigned int threads = minThreads; threads <= maxThreads;)
@@ -284,14 +289,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             }
             else
             {
-                if (itemsPerThread == 1)
-                {
-                    conf.setNrItemsD0(itemsPerThread);
-                }
-                else
-                {
-                    break;
-                }
+                conf.setNrItemsD0(itemsPerThread);
             }
 
             // Generate kernel
@@ -409,10 +407,10 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             else
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
-            {
-                global = cl::NDRange(conf.getNrThreadsD0() * (observation.getNrSamplesPerBatch() / medianStep), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
-                local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
-            }
+                {
+                    global = cl::NDRange(conf.getNrThreadsD0() * (observation.getNrSamplesPerBatch() / medianStep), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
+                    local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
+                }
             }
 
             kernel->setArg(0, input_d);
