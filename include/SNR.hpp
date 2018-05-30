@@ -66,7 +66,8 @@ enum Kernel
 {
     SNR,
     Max,
-    MedianOfMedians
+    MedianOfMedians,
+    AbsoluteDeviation
 };
 
 /**
@@ -89,6 +90,18 @@ std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::
  */
 template <typename DataType>
 void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding);
+/**
+ ** @brief Generate OpenCL code for for the absolute deviation kernel.
+ */
+template <typename DataType>
+std::string * getAbsoluteDeviationOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
+template <typename DataType>
+std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
+/**
+ ** @brief CPU control version of absolute deviation.
+ */
+template <typename DataType>
+void absoluteDeviation(const DataType baseline, const std::vector<DataType> &timeSeries, std::vector<DataType> &absoluteDeviations, const AstroData::Observation &observation, const unsigned int padding);
 // OpenCL SNR
 template <typename T>
 std::string *getSNRDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding);
@@ -311,6 +324,79 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
                     }
                     std::sort(localArray.begin(), localArray.end());
                     medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
+                }
+            }
+        }
+    }
+}
+
+
+template <typename DataType>
+std::string * getAbsoluteDeviationOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
+{
+    std::string *code = 0;
+
+    if (ordering == DataOrdering::DMsSamples)
+    {
+        code = getAbsoluteDeviationDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
+    }
+    return code;
+}
+
+template <typename DataType>
+std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
+{
+    std::string *code = new std::string();
+    unsigned int nrSamples = 0;
+    unsigned int nrDMs = 0;
+
+    if (conf.getSubbandDedispersion())
+    {
+        nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
+    }
+    else
+    {
+        nrDMs = observation.getNrDMs();
+    }
+    nrSamples = observation.getNrSamplesPerBatch() / downsampling;
+    // Generate source code
+    *code = "__kernel void absolute_deviation_1D(__global const " + dataName + " baseline, __global const " + dataName + " * const restrict input_data, __global " + dataName + " * const restrict output_data) {\n"
+        "unsigned int item = (get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * <%ITEMS_PER_BLOCK%>) + get_local_id(0);\n"
+        "<%COMPUTE_STORE%>"
+        "}\n";
+    std::string computeStoreTemplate = "output_data[item + <%ITEM_OFFSET%>] = abs_diff(input_data[item + <%OFFSET%>], baseline);\n";
+    std::string computeStore;
+    for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
+    {
+        std::string *temp;
+        std::string itemOffsetString = std::to_string(item * conf.getNrThreadsD0());
+        if (item == 0)
+        {
+            temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
+        }
+        else
+        {
+            temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
+        }
+        computeStore.append(*temp);
+        delete temp;
+    }
+    code = isa::utils::replace(code, "<%COMPUTE_STORE%>", computeStore, true);
+    return code;
+}
+
+template <typename DataType>
+void absoluteDeviation(const DataType baseline, const std::vector<DataType> &timeSeries, std::vector<DataType> &absoluteDeviations, const AstroData::Observation &observation, const unsigned int padding)
+{
+    for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
+    {
+        for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
+        {
+            for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
+            {
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
+                {
+                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample)) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample)) - baseline);
                 }
             }
         }
