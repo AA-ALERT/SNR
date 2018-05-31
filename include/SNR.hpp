@@ -360,7 +360,7 @@ std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const st
     }
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
     // Generate source code
-    *code = "__kernel void absolute_deviation_1D(__global const " + dataName + " baseline, __global const " + dataName + " * const restrict input_data, __global " + dataName + " * const restrict output_data) {\n"
+    *code = "__kernel void absolute_deviation_" + std::to_string(nrSamples) + "(__global const " + dataName + " baseline, __global const " + dataName + " * const restrict input_data, __global " + dataName + " * const restrict output_data) {\n"
         "unsigned int item = (get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * <%ITEMS_PER_BLOCK%>) + get_local_id(0);\n"
         "<%COMPUTE_STORE%>"
         "}\n";
