@@ -32,7 +32,7 @@
 #include <SNR.hpp>
 #include <Statistics.hpp>
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0);
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0, const inputDataType baseline = 0);
 
 int main(int argc, char *argv[])
 {
@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
     unsigned int clPlatformID = 0;
     unsigned int clDeviceID = 0;
     unsigned int stepSize = 0;
+    inputDataType baseline = 0;
     SNR::Kernel kernel;
     SNR::DataOrdering ordering;
     AstroData::Observation observation;
@@ -63,8 +64,12 @@ int main(int argc, char *argv[])
         {
             kernel = SNR::Kernel::MedianOfMedians;
         }
+        else if (args.getSwitch("-absolute_deviation"))
+        {
+            kernel = SNR::Kernel::AbsoluteDeviation;
+        }
         else{
-            std::cerr << "One switch between -snr -max and -median is required." << std::endl;
+            std::cerr << "One switch between -snr -max -median and -absolute_deviation is required." << std::endl;
             return 1;
         }
         if (args.getSwitch("-dms_samples"))
@@ -86,7 +91,7 @@ int main(int argc, char *argv[])
         clDeviceID = args.getSwitchArgument<unsigned int>("-opencl_device");
         padding = args.getSwitchArgument<unsigned int>("-padding");
         conf.setNrThreadsD0(args.getSwitchArgument<unsigned int>("-threadsD0"));
-        if ((kernel == SNR::Kernel::SNR) || (kernel == SNR::Kernel::Max))
+        if ((kernel == SNR::Kernel::SNR) || (kernel == SNR::Kernel::Max) || (kernel == SNR::Kernel::AbsoluteDeviation))
         {
             conf.setNrItemsD0(args.getSwitchArgument<unsigned int>("-itemsD0"));
         }
@@ -106,6 +111,10 @@ int main(int argc, char *argv[])
         {
             stepSize = args.getSwitchArgument<unsigned int>("-median_step");
         }
+        if (kernel == SNR::Kernel::AbsoluteDeviation)
+        {
+            baseline = args.getSwitchArgument<inputDataType>("-baseline");
+        }
     }
     catch (isa::utils::SwitchNotFound &err)
     {
@@ -114,24 +123,29 @@ int main(int argc, char *argv[])
     }
     catch (std::exception &err)
     {
-        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
-        std::cerr << "\t -subband : -subbanding_dms ..." << std::endl;
-        std::cerr << "\t -median: -median_step ..." << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
+        std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
+        std::cerr << "\t -median -median_step ..." << std::endl;
+        std::cerr << "\t -absolute_deviation -baseline ..." << std::endl;
         return 1;
     }
-    if (kernel != SNR::Kernel::MedianOfMedians)
+    if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max)
     {
         returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf);
     }
-    else
+    else if (kernel == SNR::Kernel::MedianOfMedians)
     {
         returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
+    }
+    else if (kernel == SNR::Kernel::AbsoluteDeviation)
+    {
+        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, 0, baseline);
     }
 
     return returnCode;
 }
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep)
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep, const inputDataType baseline)
 {
     uint64_t wrongSamples = 0;
     uint64_t wrongPositions = 0;
@@ -157,20 +171,24 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         input.resize(observation.getNrSynthesizedBeams() * observation.getNrSamplesPerBatch() * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(inputDataType)));
     }
-    if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+    if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
     {
         output.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float)));
         outputIndex.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
     }
-    else
+    else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
     {
         output.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
+    }
+    else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+    {
+        output.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType)));
     }
     try
     {
         input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
         output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
-        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
         }
@@ -294,9 +312,13 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         code = SNR::getMaxOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
     }
-    else
+    else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
     {
         code = SNR::getMedianOfMediansOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, medianStep, padding);
+    }
+    else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+    {
+        code = SNR::getAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
     }
     if (printCode)
     {
@@ -323,11 +345,18 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 kernel = isa::OpenCL::compile("getMax_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
             }
         }
-        else
+        else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
                 kernel = isa::OpenCL::compile("medianOfMedians_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+            }
+        }
+        else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+        {
+            if (ordering == SNR::DataOrdering::DMsSamples)
+            {
+                kernel = isa::OpenCL::compile("absolute_deviation_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
             }
         }
     }
@@ -340,16 +369,21 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     // Run OpenCL kernel and CPU control
     std::vector<isa::utils::Statistics<inputDataType>> control(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs());
     std::vector<outputDataType> medians_control;
+    std::vector<outputDataType> absoluteDeviations_control;
     if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
     {
         medians_control.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
+    }
+    else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+    {
+        absoluteDeviations_control.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType)));
     }
     try
     {
         cl::NDRange global;
         cl::NDRange local;
 
-        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
@@ -362,7 +396,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 local = cl::NDRange(conf.getNrThreadsD0(), 1);
             }
         }
-        else
+        else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
@@ -370,15 +404,23 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
             }
         }
+        else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+        {
+            if (ordering == SNR::DataOrdering::DMsSamples)
+            {
+                global = cl::NDRange(observation.getNrSamplesPerBatch() / conf.getNrItemsD0(), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
+                local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
+            }
+        }
         kernel->setArg(0, input_d);
         kernel->setArg(1, output_d);
-        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             kernel->setArg(2, outputIndex_d);
         }
         clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
         clQueues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(outputDataType), reinterpret_cast<void *>(output.data()));
-        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
         }
@@ -431,6 +473,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         SNR::medianOfMedians(medianStep, input, medians_control, observation, padding);
     }
+    else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+    {
+        SNR::absoluteDeviation(baseline, input, absoluteDeviations_control, observation, padding);
+    }
 
     for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
     {
@@ -460,11 +506,21 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                         wrongPositions++;
                     }
                 }
-                else
+                else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
                 {
                     for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / medianStep; step++)
                     {
                         if (!isa::utils::same(output[(beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType))) + step], medians_control[(beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType))) + step], static_cast<outputDataType>(1e-2)))
+                        {
+                            wrongSamples++;
+                        }
+                    }
+                }
+                else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+                {
+                    for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
+                    {
+                        if (!isa::utils::same(output.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + sample), absoluteDeviations_control.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + sample), static_cast<outputDataType>(1e-03)))
                         {
                             wrongSamples++;
                         }
@@ -493,7 +549,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                         std::cout << output[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + dm] << "," << input[(beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm)] << " ; ";
                         std::cout << outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << "," << maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << " ";
                     }
-                    else
+                    else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
                     {
                         for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / medianStep; step++)
                         {
@@ -501,6 +557,14 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                         }
                         std::cout << std::endl;
                     }
+                    else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+                    {
+                        for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
+                        {
+                            std::cout << output.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + sample) << "," << absoluteDeviations_control.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + sample) << " ";
+                        }
+                        std::cout << std::endl;
+                    }   
                 }
                 std::cout << std::endl;
             }
@@ -510,13 +574,17 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
 
     if (wrongSamples > 0)
     {
-        if (kernelUnderTest != SNR::Kernel::MedianOfMedians)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             std::cout << "Wrong samples: " << wrongSamples << " (" << (wrongSamples * 100.0) / static_cast<uint64_t>(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs()) << "%)." << std::endl;
         }
-        else
+        else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
         {
             std::cout << "Wrong samples: " << wrongSamples << " (" << (wrongSamples * 100.0) / static_cast<uint64_t>(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * (observation.getNrSamplesPerBatch() / medianStep)) << "%)." << std::endl;
+        }
+        else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+        {
+            std::cout << "Wrong samples: " << wrongSamples << " (" << (wrongSamples * 100.0) / static_cast<uint64_t>(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch()) << "%)." << std::endl;
         }
     }
     else if (wrongPositions > 0)
