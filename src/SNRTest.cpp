@@ -412,11 +412,22 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
             }
         }
-        kernel->setArg(0, input_d);
-        kernel->setArg(1, output_d);
         if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
+            kernel->setArg(0, input_d);
+            kernel->setArg(1, output_d);
             kernel->setArg(2, outputIndex_d);
+        }
+        else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
+        {
+            kernel->setArg(0, input_d);
+            kernel->setArg(1, output_d);
+        }
+        else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+        {
+            kernel->setArg(0, baseline);
+            kernel->setArg(1, input_d);
+            kernel->setArg(2, output_d);
         }
         clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
         clQueues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(outputDataType), reinterpret_cast<void *>(output.data()));
