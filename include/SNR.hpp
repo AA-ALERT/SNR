@@ -364,7 +364,7 @@ std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const st
         "unsigned int item = (get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
         "<%COMPUTE_STORE%>"
         "}\n";
-    std::string computeStoreTemplate = "output_data[item + <%ITEM_OFFSET%>] = abs_diff(input_data[item + <%ITEM_OFFSET%>], baseline);\n";
+    std::string computeStoreTemplate = "output_data[item + <%ITEM_OFFSET%>] = fabs(input_data[item + <%ITEM_OFFSET%>] - baseline);\n";
     std::string computeStore;
     for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
     {
