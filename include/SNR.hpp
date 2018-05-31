@@ -370,14 +370,13 @@ std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const st
     {
         std::string *temp;
         std::string itemOffsetString = std::to_string(item * conf.getNrThreadsD0());
-        temp = isa::utils::replace(&computeStoreTemplate, "", std::string());
         if (item == 0)
         {
-            temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
+            temp = isa::utils::replace(&computeStoreTemplate, " + <%ITEM_OFFSET%>", std::string(), true);
         }
         else
         {
-            temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
+            temp = isa::utils::replace(&computeStoreTemplate, "<%ITEM_OFFSET%>", itemOffsetString, true);
         }
         computeStore.append(*temp);
         delete temp;
