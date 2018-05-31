@@ -396,7 +396,7 @@ void absoluteDeviation(const DataType baseline, const std::vector<DataType> &tim
             {
                 for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
-                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample)) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baseline);
+                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baseline);
                 }
             }
         }
