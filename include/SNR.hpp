@@ -386,7 +386,7 @@ std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const st
 }
 
 template <typename DataType>
-void absoluteDeviation(const DataType baseline, const std::vector<DataType> &timeSeries, std::vector<DataType> &absoluteDeviations, const AstroData::Observation &observation, const unsigned int padding)
+void absoluteDeviation(const std::vector<DataType> &baselines, const std::vector<DataType> &timeSeries, std::vector<DataType> &absoluteDeviations, const AstroData::Observation &observation, const unsigned int padding)
 {
     for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
     {
@@ -396,7 +396,7 @@ void absoluteDeviation(const DataType baseline, const std::vector<DataType> &tim
             {
                 for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
-                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baseline);
+                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baselines.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * (padding / sizeof(DataType))) + (dm * (padding / sizeof(DataType)))));
                 }
             }
         }
