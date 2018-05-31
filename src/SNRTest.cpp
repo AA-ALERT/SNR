@@ -32,7 +32,7 @@
 #include <SNR.hpp>
 #include <Statistics.hpp>
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0, const inputDataType baseline = 0);
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0);
 
 int main(int argc, char *argv[])
 {
@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
     unsigned int clPlatformID = 0;
     unsigned int clDeviceID = 0;
     unsigned int stepSize = 0;
-    inputDataType baseline = 0;
     SNR::Kernel kernel;
     SNR::DataOrdering ordering;
     AstroData::Observation observation;
@@ -111,10 +110,6 @@ int main(int argc, char *argv[])
         {
             stepSize = args.getSwitchArgument<unsigned int>("-median_step");
         }
-        if (kernel == SNR::Kernel::AbsoluteDeviation)
-        {
-            baseline = args.getSwitchArgument<inputDataType>("-baseline");
-        }
     }
     catch (isa::utils::SwitchNotFound &err)
     {
@@ -126,10 +121,9 @@ int main(int argc, char *argv[])
         std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
         std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
         std::cerr << "\t -median -median_step ..." << std::endl;
-        std::cerr << "\t -absolute_deviation -baseline ..." << std::endl;
         return 1;
     }
-    if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max)
+    if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::AbsoluteDeviation)
     {
         returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf);
     }
@@ -137,15 +131,11 @@ int main(int argc, char *argv[])
     {
         returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
     }
-    else if (kernel == SNR::Kernel::AbsoluteDeviation)
-    {
-        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, 0, baseline);
-    }
 
     return returnCode;
 }
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep, const inputDataType baseline)
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep)
 {
     uint64_t wrongSamples = 0;
     uint64_t wrongPositions = 0;
@@ -161,7 +151,8 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     std::vector<inputDataType> input;
     std::vector<outputDataType> output;
     std::vector<unsigned int> outputIndex;
-    cl::Buffer input_d, output_d, outputIndex_d;
+    std::vector<outputDataType> baselines;
+    cl::Buffer input_d, output_d, outputIndex_d, baselines_d;
 
     if (ordering == SNR::DataOrdering::DMsSamples)
     {
@@ -183,6 +174,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
     {
         output.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType)));
+        baselines.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(outputDataType)));
     }
     try
     {
@@ -191,6 +183,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
+        }
+        if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+        {
+            baselines_d = cl::Buffer(*clContext, CL_MEM_READ_ONLY, baselines.size() * sizeof(outputDataType), 0, 0);
         }
     }
     catch (cl::Error &err)
@@ -281,6 +277,14 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     if (printResults)
     {
         std::cout << std::endl;
+    }
+    if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+    {
+        for (auto item = baselines.begin(); item != baselines.end(); ++item)
+        {
+            *item = rand() % observation.getNrDMs();
+        }
+
     }
 
     // Copy data structures to device
@@ -425,7 +429,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         }
         else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
         {
-            kernel->setArg(0, baseline);
+            kernel->setArg(0, baselines_d);
             kernel->setArg(1, input_d);
             kernel->setArg(2, output_d);
         }
@@ -486,7 +490,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     }
     else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
     {
-        SNR::absoluteDeviation(baseline, input, absoluteDeviations_control, observation, padding);
+        SNR::absoluteDeviation(baselines, input, absoluteDeviations_control, observation, padding);
     }
 
     for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
