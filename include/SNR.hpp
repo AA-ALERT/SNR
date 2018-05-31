@@ -364,7 +364,7 @@ std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const st
         "unsigned int item = (get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
         "<%COMPUTE_STORE%>"
         "}\n";
-    std::string computeStoreTemplate = "output_data[item + <%ITEM_OFFSET%>] = fabs(input_data[item + <%ITEM_OFFSET%>] - baselines[(get_group_id(2) * " + std::to_string(nrDMs * (padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(padding / sizeof(DataType)) + ")]);\n";
+    std::string computeStoreTemplate = "output_data[item + <%ITEM_OFFSET%>] = fabs(input_data[item + <%ITEM_OFFSET%>] - baselines[(get_group_id(2) * " + std::to_string(nrDMs * (padding / sizeof(DataType))) + ") + get_group_id(1)]);\n";
     std::string computeStore;
     for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
     {
@@ -396,7 +396,7 @@ void absoluteDeviation(const std::vector<DataType> &baselines, const std::vector
             {
                 for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
-                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baselines.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * (padding / sizeof(DataType))) + (dm * (padding / sizeof(DataType)))));
+                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baselines.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm));
                 }
             }
         }
