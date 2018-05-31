@@ -360,8 +360,8 @@ std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const st
     }
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
     // Generate source code
-    *code = "__kernel void absolute_deviation_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " baseline, __global const " + dataName + " * const restrict input_data, __global " + dataName + " * const restrict output_data) {\n"
-        "unsigned int item = (get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * <%ITEMS_PER_BLOCK%>) + get_local_id(0);\n"
+    *code = "__kernel void absolute_deviation_DMsSamples_" + std::to_string(nrSamples) + "(const " + dataName + " baseline, __global const " + dataName + " * const restrict input_data, __global " + dataName + " * const restrict output_data) {\n"
+        "unsigned int item = (get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
         "<%COMPUTE_STORE%>"
         "}\n";
     std::string computeStoreTemplate = "output_data[item + <%ITEM_OFFSET%>] = abs_diff(input_data[item + <%ITEM_OFFSET%>], baseline);\n";
