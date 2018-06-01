@@ -401,7 +401,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     std::vector<isa::utils::Statistics<inputDataType>> control(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs());
     std::vector<outputDataType> medians_control;
     std::vector<outputDataType> absoluteDeviations_control;
-    if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
+    if (kernelUnderTest == SNR::Kernel::MedianOfMedians || kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
     {
         medians_control.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
     }
