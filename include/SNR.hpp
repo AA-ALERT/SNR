@@ -393,7 +393,7 @@ std::string *getMedianOfMediansAbsoluteDeviationDMsSamplesOpenCL(const snrConf &
     // Generate source code
     *code = "__kernel void medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(stepSize) + "(__global const " + dataName + " * const restrict baselines, __global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict medians) {\n"
         "__local " + dataName + " local_data[" + std::to_string(stepSize) + "];\n"
-        dataName + " baseline = baselines[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)];\n"
+        + dataName + " baseline = baselines[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)];\n"
         "\n"
         "// Load data in shared memory\n"
         "for ( unsigned int item = get_local_id(0); item < " + std::to_string(stepSize) + "; item += " + std::to_string(conf.getNrThreadsD0()) + " ) {\n"
