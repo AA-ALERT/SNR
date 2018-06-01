@@ -312,9 +312,21 @@ std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::
         "}\n"
         "// Store median\n"
         "if ( get_local_id(0) == 0 ) {\n"
-        "medians[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples / stepSize, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples / stepSize, padding / sizeof(DataType))) + ") + get_group_id(0)] = local_data[" + std::to_string(stepSize / 2) + "];\n"
+        "<%STORE%>"
         "}\n"
         "}\n";
+    std::string storeTemplateFirstStep = "medians[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples / stepSize, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples / stepSize, padding / sizeof(DataType))) + ") + get_group_id(0)] = local_data[" + std::to_string(stepSize / 2) + "];\n";
+    std::string storeTemplateSecondStep = "if (get_local_id(0) == 0) {\n"
+        "medians[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = local_data[" + std::to_string(stepSize / 2) + "];\n"
+        "}\n";
+    if (nrSamples != stepSize)
+    {
+        code = isa::utils::replace(code, "<%STORE%>", storeTemplateFirstStep, true);
+    }
+    else
+    {
+        code = isa::utils::replace(code, "<%STORE%>", storeTemplateSecondStep, true);
+    }
     return code;
 }
 
