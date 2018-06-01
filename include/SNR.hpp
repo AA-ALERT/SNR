@@ -348,7 +348,14 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
                         localArray.push_back(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample));
                     }
                     std::sort(localArray.begin(), localArray.end());
-                    medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
+                    if (stepSize == observation.getNrSamplesPerBatch())
+                    {
+                        medians.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm) = localArray.at(stepSize / 2);
+                    }
+                    else
+                    {
+                        medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
+                    }
                 }
             }
         }
