@@ -384,7 +384,7 @@ std::string *getMedianOfMediansAbsoluteDeviationDMsSamplesOpenCL(const snrConf &
     }
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
     // Generate source code
-    *code = "__kernel void medianOfMedians_DMsSamples_" + std::to_string(stepSize) + "(__global const " + dataName + " * const restrict baselines, __global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict medians) {\n"
+    *code = "__kernel void medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(stepSize) + "(__global const " + dataName + " * const restrict baselines, __global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict medians) {\n"
         "__local " + dataName + " local_data[" + std::to_string(stepSize) + "];\n"
         dataName + " baseline = baselines[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)];\n"
         "\n"
