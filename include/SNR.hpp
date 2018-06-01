@@ -91,6 +91,18 @@ std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::
 template <typename DataType>
 void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding);
 /**
+ ** @brief Generate OpenCL code for the median of medians absolute deviation kernel.
+ */
+template <typename DataType>
+std::string *getMedianOfMediansAbsoluteDeviationOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding);
+template <typename DataType>
+std::string *getMedianOfMediansAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding);
+/**
+ ** @brief CPU control version of median of medians absolute deviation.
+ */
+template <typename DataType>
+void medianOfMediansAbsoluteDeviation(const unsigned int stepSize, const std::vector<DataType> &baselines, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding);
+/**
  ** @brief Generate OpenCL code for for the absolute deviation kernel.
  */
 template <typename DataType>
@@ -330,6 +342,89 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
     }
 }
 
+template <typename DataType>
+std::string *getMedianOfMediansAbsoluteDeviationOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding)
+{
+    std::string *code = 0;
+
+    if (ordering == DataOrdering::DMsSamples)
+    {
+        code = getMedianOfMediansAbsoluteDeviationDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, stepSize, padding);
+    }
+    return code;
+}
+
+template <typename DataType>
+std::string *getMedianOfMediansAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding)
+{
+    std::string *code = new std::string();
+    unsigned int nrSamples = 0;
+    unsigned int nrDMs = 0;
+
+    if (conf.getSubbandDedispersion())
+    {
+        nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
+    }
+    else
+    {
+        nrDMs = observation.getNrDMs();
+    }
+    nrSamples = observation.getNrSamplesPerBatch() / downsampling;
+    // Generate source code
+    *code = "__kernel void medianOfMedians_DMsSamples_" + std::to_string(stepSize) + "(__global const " + dataName + " * const restrict baselines, __global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict medians) {\n"
+        "__local " + dataName + " local_data[" + std::to_string(stepSize) + "];\n"
+        dataName + " baseline = baselines[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)];\n"
+        "\n"
+        "// Load data in shared memory\n"
+        "for ( unsigned int item = get_local_id(0); item < " + std::to_string(stepSize) + "; item += " + std::to_string(conf.getNrThreadsD0()) + " ) {\n"
+        "local_data[item] = fabs(time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(0) * " + std::to_string(stepSize) + ") + item] - baseline);\n"
+        "}\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "// Bubble Sort\n"
+        "for ( unsigned int step = 0; step < " + std::to_string(stepSize) + "; step++ ) {\n"
+        "if ( (get_local_id(0) % 2) == (step % 2) ) {\n"
+        "for ( unsigned int item = get_local_id(0); item < " + std::to_string(stepSize) + " - 1; item += " + std::to_string(conf.getNrThreadsD0()) + " ) {\n"
+        "if ( local_data[item] > local_data[item + 1] ) {\n"
+        "" + dataName + " temp = local_data[item];\n"
+        "local_data[item] = local_data[item + 1];\n"
+        "local_data[item + 1] = temp;\n"
+        "}\n"
+        "}\n"
+        "}\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "}\n"
+        "// Store median\n"
+        "if ( get_local_id(0) == 0 ) {\n"
+        "medians[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples / stepSize, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples / stepSize, padding / sizeof(DataType))) + ") + get_group_id(0)] = local_data[" + std::to_string(stepSize / 2) + "];\n"
+        "}\n"
+        "}\n";
+    return code;
+}
+
+template <typename DataType>
+void medianOfMediansAbsoluteDeviation(const unsigned int stepSize, const std::vector<DataType> &baselines, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding)
+{
+    for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
+    {
+        for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
+        {
+            for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
+            {
+                for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / stepSize; step++)
+                {
+                    std::vector<DataType> localArray;
+
+                    for (unsigned int sample = 0; sample < stepSize; sample++)
+                    {
+                        localArray.push_back(std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample) - baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm)));
+                    }
+                    std::sort(localArray.begin(), localArray.end());
+                    medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
+                }
+            }
+        }
+    }
+}
 
 template <typename DataType>
 std::string * getAbsoluteDeviationOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
