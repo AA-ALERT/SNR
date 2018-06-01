@@ -67,6 +67,7 @@ enum Kernel
     SNR,
     Max,
     MedianOfMedians,
+    MedianOfMediansAbsoluteDeviation,
     AbsoluteDeviation
 };
 
