@@ -296,11 +296,32 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     }
     if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation || kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
     {
-        for (auto item = baselines.begin(); item != baselines.end(); ++item)
+        for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
         {
-            *item = rand() % observation.getNrDMs();
+            if (printResults)
+            {
+                std::cout << "Beam: " << beam << " -- ";
+            }
+            for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
+            {
+                for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
+                {
+                    baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm) = static_cast<outputDataType>(std::rand() % 10);
+                    if (printResults)
+                    {
+                        std::cout << baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm) << " ";
+                    }
+                }
+            }
+            if (printResults)
+            {
+                std::cout << std::endl;
+            }
         }
-
+        if (printResults)
+        {
+            std::cout << std::endl;
+        }
     }
 
     // Copy data structures to device
