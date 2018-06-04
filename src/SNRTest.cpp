@@ -233,7 +233,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 {
                     if (printResults)
                     {
-                        std::cout << "Inpu -- DM: " << (subbandingDM * observation.getNrDMs()) + dm << " -- ";
+                        std::cout << "Input -- DM: " << (subbandingDM * observation.getNrDMs()) + dm << " -- ";
                     }
                     for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                     {
