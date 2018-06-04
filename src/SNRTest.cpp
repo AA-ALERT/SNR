@@ -306,7 +306,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
             {
                 for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
                 {
-                    baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm) = static_cast<outputDataType>(std::rand() % 10);
+                    baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm) = static_cast<outputDataType>((std::rand() % 10) + 1;
                     if (printResults)
                     {
                         std::cout << baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm) << " ";
