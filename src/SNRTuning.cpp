@@ -33,6 +33,7 @@
 #include <Timer.hpp>
 
 void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *outputSample_d, const uint64_t outputSample_size);
+void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *baselines_d, std::vector<outputDataType> *baselines);
 int tune(const bool bestMode, const unsigned int nrIterations, const unsigned int minThreads, const unsigned int maxThreads, const unsigned int maxItems, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelTuned, const unsigned int padding, const AstroData::Observation &observation, SNR::snrConf &conf, const unsigned int medianStep = 0);
 
 int main(int argc, char *argv[])
@@ -67,9 +68,17 @@ int main(int argc, char *argv[])
         {
             kernel = SNR::Kernel::MedianOfMedians;
         }
+        else if (args.getSwitch("-momad"))
+        {
+            kernel = SNR::Kernel::MedianOfMediansAbsoluteDeviation;
+        }
+        else if (args.getSwitch("-absolute_deviation"))
+        {
+            kernel = SNR::Kernel::AbsoluteDeviation;
+        }
         else
         {
-            std::cerr << "One switch between -snr -max and -median is required." << std::endl;
+            std::cerr << "One switch between -snr -max -median -momad and -absolute_deviation is required." << std::endl;
             return 1;
         }
         if (args.getSwitch("-dms_samples"))
@@ -91,7 +100,7 @@ int main(int argc, char *argv[])
         bestMode = args.getSwitch("-best");
         padding = args.getSwitchArgument<unsigned int>("-padding");
         minThreads = args.getSwitchArgument<unsigned int>("-min_threads");
-        if (kernel != SNR::Kernel::MedianOfMedians)
+        if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::AbsoluteDeviation)
         {
             maxItems = args.getSwitchArgument<unsigned int>("-max_items");
         }
@@ -112,16 +121,17 @@ int main(int argc, char *argv[])
             observation.setDMRange(1, 0.0f, 0.0f, true);
         }
         observation.setDMRange(args.getSwitchArgument<unsigned int>("-dms"), 0.0, 0.0);
-        if (kernel == SNR::Kernel::MedianOfMedians)
+        if (kernel == SNR::Kernel::MedianOfMedians || kernel == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
         {
             stepSize = args.getSwitchArgument<unsigned int>("-median_step");
         }
     }
     catch (isa::utils::EmptyCommandLine &err)
     {
-        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median] [-dms_samples | -samples_dms] [-best] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -min_threads ... -max_threads ... -max_items ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
-        std::cerr << "\t -subband : -subbanding_dms ..." << std::endl;
-        std::cerr << "\t -median: -median_step ..." << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-best] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -min_threads ... -max_threads ... -max_items ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
+        std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
+        std::cerr << "\t -median -median_step ..." << std::endl;
+        std::cerr << "\t -momad -median_step ..." << std::endl;
         return 1;
     }
     catch (std::exception &err)
@@ -129,11 +139,11 @@ int main(int argc, char *argv[])
         std::cerr << err.what() << std::endl;
         return 1;
     }
-    if (kernel != SNR::Kernel::MedianOfMedians)
+    if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::AbsoluteDeviation)
     {
         returnCode = tune(bestMode, nrIterations, minThreads, maxThreads, maxItems, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf);
     }
-    else
+    else if (kernel == SNR::Kernel::MedianOfMedians || kernel == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
     {
         returnCode = tune(bestMode, nrIterations, minThreads, maxThreads, maxItems, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
     }
@@ -158,6 +168,24 @@ void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, 
     }
 }
 
+void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *baselines_d, std::vector<outputDataType> *baselines)
+{
+    try
+    {
+        *input_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, input->size() * sizeof(inputDataType), 0, 0);
+        *outputValue_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, outputSNR_size, 0, 0);
+        *baselines_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, baselines->size() * sizeof(outputDataType), 0, 0);
+        clQueue->enqueueWriteBuffer(*input_d, CL_FALSE, 0, input->size() * sizeof(inputDataType), reinterpret_cast<void *>(input->data()));
+        clQueue->enqueueWriteBuffer(*baselines_d, CL_FALSE, 0, baselines->size() * sizeof(outputDataType), reinterpret_cast<void *>(baselines->data()));
+        clQueue->finish();
+    }
+    catch (cl::Error &err)
+    {
+        std::cerr << "OpenCL error: " << std::to_string(err.err()) << "." << std::endl;
+        throw;
+    }
+}
+
 int tune(const bool bestMode, const unsigned int nrIterations, const unsigned int minThreads, const unsigned int maxThreads, const unsigned int maxItems, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelTuned, const unsigned int padding, const AstroData::Observation &observation, SNR::snrConf &conf, const unsigned int medianStep)
 {
     bool reinitializeDeviceMemory = true;
@@ -173,11 +201,16 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
 
     // Allocate memory
     std::vector<inputDataType> input;
-    cl::Buffer input_d, outputValue_d, outputSample_d;
+    std::vector<outputDataType> baselines;
+    cl::Buffer input_d, outputValue_d, outputSample_d, baselines_d;
 
     if (ordering == SNR::DataOrdering::DMsSamples)
     {
         input.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType)));
+        if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation || kernelTuned == SNR::Kernel::AbsoluteDeviation)
+        {
+            baselines.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)));
+        }
     }
     else
     {
@@ -208,8 +241,21 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 {
                     for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
                     {
-                        input[(beam * observation.getNrSamplesPerBatch() * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(inputDataType))) + (sample * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(inputDataType))) + (subbandDM * observation.getNrDMs(false, padding / sizeof(inputDataType))) + dm] = static_cast<inputDataType>(rand() % 10);
+                        input[(beam * observation.getNrSamplesPerBatch() * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(inputDataType))) + (sample * observation.getNrDMs(true) * observation.getNrDMs(false, padding / sizeof(inputDataType))) + (subbandDM * observation.getNrDMs(false, padding / sizeof(inputDataType))) + dm] = static_cast<inputDataType>(std::rand() % 10);
                     }
+                }
+            }
+        }
+    }
+    if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation || kernelTuned == SNR::Kernel::AbsoluteDeviation)
+    {
+        for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
+        {
+            for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
+            {
+                for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
+                {
+                    baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm) = static_cast<outputDataType>((std::rand() % 10) + 1);
                 }
             }
         }
@@ -287,9 +333,17 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     continue;
                 }
             }
-            else
+            else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
             {
+                if ((observation.getNrSamplesPerBatch() % itemsPerThread) != 0)
+                {
+                    continue;
+                }
                 conf.setNrItemsD0(itemsPerThread);
+                if ((conf.getNrThreadsD0() * conf.getNrItemsD0()) > observation.getNrSamplesPerBatch())
+                {
+                    continue;
+                }
             }
 
             // Generate kernel
@@ -297,13 +351,21 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             cl::Kernel *kernel;
             isa::utils::Timer timer;
             std::string *code;
-            if (kernelTuned != SNR::Kernel::MedianOfMedians)
+            if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
             {
                 gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(outputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(unsigned int)));
             }
-            else
+            else if (kernelTuned == SNR::Kernel::MedianOfMedians)
             {
                 gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * (observation.getNrSamplesPerBatch() / medianStep) * sizeof(outputDataType)));
+            }
+            else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
+            {
+                gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * (observation.getNrSamplesPerBatch() / medianStep) * sizeof(outputDataType)) + (observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * sizeof(outputDataType)));
+            }
+            else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
+            {
+                gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(outputDataType)) + (observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * sizeof(outputDataType)));
             }
 
             if (kernelTuned == SNR::Kernel::SNR)
@@ -324,11 +386,25 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     code = SNR::getMaxOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
                 }
             }
-            else
+            else if (kernelTuned == SNR::Kernel::MedianOfMedians)
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
                 {
                     code = SNR::getMedianOfMediansOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, medianStep, padding);
+                }
+            }
+            else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
+            {
+                if (ordering == SNR::DataOrdering::DMsSamples)
+                {
+                    code = SNR::getMedianOfMediansAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, medianStep, padding);
+                }
+            }
+            else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
+            {
+                if (ordering == SNR::DataOrdering::DMsSamples)
+                {
+                    code = SNR::getAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
                 }
             }
 
@@ -339,13 +415,21 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
                 try
                 {
-                    if (kernelTuned != SNR::Kernel::MedianOfMedians)
+                    if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
                     {
                         initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)) * sizeof(unsigned int));
                     }
-                    else
+                    else if (kernelTuned == SNR::Kernel::MedianOfMedians)
                     {
                         initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, 1);
+                    }
+                    else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
+                    {
+                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)) * sizeof(outputDataType), &baselines_d, &baselines);
+                    }
+                    else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
+                    {
+                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch(), padding / sizeof(outputDataType)) * sizeof(outputDataType), &baselines_d, &baselines);
                     }
                 }
                 catch (cl::Error &err)
@@ -374,11 +458,25 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                         kernel = isa::OpenCL::compile("getMax_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
                     }
                 }
-                else
+                else if (kernelTuned == SNR::Kernel::MedianOfMedians)
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
                         kernel = isa::OpenCL::compile("medianOfMedians_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                    }
+                }
+                else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
+                {
+                    if (ordering == SNR::DataOrdering::DMsSamples)
+                    {
+                        kernel = isa::OpenCL::compile("medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                    }
+                }
+                else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
+                {
+                    if (ordering == SNR::DataOrdering::DMsSamples)
+                    {
+                        kernel = isa::OpenCL::compile("absolute_deviation_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
                     }
                 }
             }
@@ -391,7 +489,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             delete code;
 
             cl::NDRange global, local;
-            if (kernelTuned != SNR::Kernel::MedianOfMedians)
+            if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
                 {
@@ -404,7 +502,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     local = cl::NDRange(conf.getNrThreadsD0(), 1);
                 }
             }
-            else
+            else if (kernelTuned == SNR::Kernel::MedianOfMedians || kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
                 {
@@ -412,14 +510,37 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
                 }
             }
-
-            kernel->setArg(0, input_d);
-            kernel->setArg(1, outputValue_d);
-            if (kernelTuned != SNR::Kernel::MedianOfMedians)
+            else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
             {
+                if (ordering == SNR::DataOrdering::DMsSamples)
+                {
+                    global = cl::NDRange(observation.getNrSamplesPerBatch() / conf.getNrItemsD0(), observation.getNrDMs(true) * observation.getNrDMs(), observation.getNrSynthesizedBeams());
+                    local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
+                }
+            }
+            if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
+            {
+                kernel->setArg(0, input_d);
+                kernel->setArg(1, outputValue_d);
                 kernel->setArg(2, outputSample_d);
             }
-
+            else if (kernelTuned == SNR::Kernel::MedianOfMedians)
+            {
+                kernel->setArg(0, input_d);
+                kernel->setArg(1, outputValue_d);
+            }
+            else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
+            {
+                kernel->setArg(0, baselines_d);
+                kernel->setArg(1, input_d);
+                kernel->setArg(2, outputValue_d);
+            }
+            else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
+            {
+                kernel->setArg(0, baselines_d);
+                kernel->setArg(1, input_d);
+                kernel->setArg(2, outputValue_d);
+            }
             try
             {
                 // Warm-up run
