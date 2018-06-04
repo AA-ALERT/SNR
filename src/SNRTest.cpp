@@ -233,7 +233,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 {
                     if (printResults)
                     {
-                        std::cout << "DM: " << (subbandingDM * observation.getNrDMs()) + dm << " -- ";
+                        std::cout << "Inpu -- DM: " << (subbandingDM * observation.getNrDMs()) + dm << " -- ";
                     }
                     for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                     {
@@ -263,7 +263,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
             {
                 if (printResults)
                 {
-                    std::cout << "Sample: " << sample << " -- ";
+                    std::cout << "Input -- Sample: " << sample << " -- ";
                 }
                 for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
                 {
@@ -300,7 +300,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         {
             if (printResults)
             {
-                std::cout << "Beam: " << beam << " -- ";
+                std::cout << "Baselines -- Beam: " << beam << " -- ";
             }
             for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
             {
@@ -328,6 +328,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     try
     {
         clQueues->at(clDeviceID)[0].enqueueWriteBuffer(input_d, CL_FALSE, 0, input.size() * sizeof(inputDataType), reinterpret_cast<void *>(input.data()));
+        if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation || kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
+        {
+            clQueues->at(clDeviceID)[0].enqueueWriteBuffer(baselines_d, CL_FALSE, 0, baselines.size() * sizeof(outputDataType), reinterpret_cast<void *>(baselines.data()));
+        }
     }
     catch (cl::Error &err)
     {
