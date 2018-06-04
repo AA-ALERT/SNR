@@ -185,12 +185,12 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     else if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
     {
         output.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
-        baselines.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(outputDataType)));
+        baselines.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)));
     }
     else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
     {
         output.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType)));
-        baselines.resize(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(outputDataType)));
+        baselines.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)));
     }
     try
     {
