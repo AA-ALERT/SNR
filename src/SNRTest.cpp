@@ -32,7 +32,7 @@
 #include <SNR.hpp>
 #include <Statistics.hpp>
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0);
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int downsampling, const unsigned int medianStep = 0);
 
 int main(int argc, char *argv[])
 {
@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
     unsigned int clPlatformID = 0;
     unsigned int clDeviceID = 0;
     unsigned int stepSize = 0;
+    unsigned int downsampling = 0;
     SNR::Kernel kernel;
     SNR::DataOrdering ordering;
     AstroData::Observation observation;
@@ -101,6 +102,7 @@ int main(int argc, char *argv[])
         conf.setSubbandDedispersion(args.getSwitch("-subband"));
         observation.setNrSynthesizedBeams(args.getSwitchArgument<unsigned int>("-beams"));
         observation.setNrSamplesPerBatch(args.getSwitchArgument<unsigned int>("-samples"));
+        downsampling = args.getSwitchArgument<unsigned int>("-downsampling");
         if (conf.getSubbandDedispersion())
         {
             observation.setDMRange(args.getSwitchArgument<unsigned int>("-subbanding_dms"), 0.0f, 0.0f, true);
@@ -122,7 +124,7 @@ int main(int argc, char *argv[])
     }
     catch (std::exception &err)
     {
-        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ... -downsampling ..." << std::endl;
         std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
         std::cerr << "\t -median -median_step ..." << std::endl;
         std::cerr << "\t -momad -median_step ..." << std::endl;
@@ -130,17 +132,17 @@ int main(int argc, char *argv[])
     }
     if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::AbsoluteDeviation)
     {
-        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf);
+        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, downsampling);
     }
     else if (kernel == SNR::Kernel::MedianOfMedians || kernel == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
     {
-        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
+        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, downsampling, stepSize);
     }
 
     return returnCode;
 }
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep)
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int downsampling, const unsigned int medianStep)
 {
     uint64_t wrongSamples = 0;
     uint64_t wrongPositions = 0;
@@ -355,19 +357,19 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     }
     else if (kernelUnderTest == SNR::Kernel::Max)
     {
-        code = SNR::getMaxOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
+        code = SNR::getMaxOpenCL<inputDataType>(conf, ordering, inputDataName, observation, downsampling, padding);
     }
     else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
     {
-        code = SNR::getMedianOfMediansOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, medianStep, padding);
+        code = SNR::getMedianOfMediansOpenCL<inputDataType>(conf, ordering, inputDataName, observation, downsampling, medianStep, padding);
     }
     else if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
     {
-        code = SNR::getMedianOfMediansAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, medianStep, padding);
+        code = SNR::getMedianOfMediansAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, downsampling, medianStep, padding);
     }
     else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
     {
-        code = SNR::getAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
+        code = SNR::getAbsoluteDeviationOpenCL<inputDataType>(conf, ordering, inputDataName, observation, downsampling, padding);
     }
     if (printCode)
     {
