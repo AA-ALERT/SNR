@@ -327,6 +327,7 @@ std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::
         "local_data[item - 1] = temp;\n"
         "}\n"
         "}\n"
+        "}\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
         "}\n"
         "// Store median\n"
