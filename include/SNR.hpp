@@ -298,7 +298,7 @@ std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::
         "}\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
         "// Odd Even Sort\n"
-        "for ( unsigned int item = get_local_id(0); item < " + std::to_string(stepSize) + "; item += " + std::to_string(conf.getNrThreadsD0()) + " ) {\n"
+        "for ( unsigned int item = 0; item < " + std::to_string(stepSize) + "; item++ ) {\n"
         "if ( (item % 2) == 1 ) {\n"
         "if ( (get_local_id(0) % 2) == 1 ) {\n"
         "if ( local_data[item] > local_data[item + 1] ) {\n"
