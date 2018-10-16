@@ -87,7 +87,7 @@ std::string *getMedianOfMediansOpenCL(const snrConf &conf, const DataOrdering or
 template <typename DataType>
 std::string *getMedianOfMediansDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding);
 /**
- ** @brief CPU control version of median of medians.
+ ** @brief CPU version of median of medians.
  */
 template <typename DataType>
 void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding);
@@ -99,7 +99,7 @@ std::string *getMedianOfMediansAbsoluteDeviationOpenCL(const snrConf &conf, cons
 template <typename DataType>
 std::string *getMedianOfMediansAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int stepSize, const unsigned int padding);
 /**
- ** @brief CPU control version of median of medians absolute deviation.
+ ** @brief CPU version of median of medians absolute deviation.
  */
 template <typename DataType>
 void medianOfMediansAbsoluteDeviation(const unsigned int stepSize, const std::vector<DataType> &baselines, const std::vector<DataType> &timeSeries, std::vector<DataType> &medians, const AstroData::Observation &observation, const unsigned int padding);
@@ -111,7 +111,7 @@ std::string * getAbsoluteDeviationOpenCL(const snrConf &conf, const DataOrdering
 template <typename DataType>
 std::string * getAbsoluteDeviationDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
 /**
- ** @brief CPU control version of absolute deviation.
+ ** @brief CPU version of absolute deviation.
  */
 template <typename DataType>
 void absoluteDeviation(const DataType baseline, const std::vector<DataType> &timeSeries, std::vector<DataType> &absoluteDeviations, const AstroData::Observation &observation, const unsigned int padding);
