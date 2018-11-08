@@ -161,7 +161,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     {
         nrDMs = observation.getNrDMs();
     }
-        nrSamples = observation.getNrSamplesPerBatch() / downsampling;
+    nrSamples = observation.getNrSamplesPerBatch() / downsampling;
     // Generate source code
     *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices) {\n"
         "<%LOCAL_VARIABLES%>"
