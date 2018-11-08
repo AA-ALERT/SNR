@@ -337,13 +337,13 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
         {
             for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
             {
-                for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / stepSize; step++)
+                for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize; step++)
                 {
                     std::vector<DataType> localArray;
 
                     for (unsigned int sample = 0; sample < stepSize; sample++)
                     {
-                        localArray.push_back(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample));
+                        localArray.push_back(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (step * stepSize) + sample));
                     }
                     std::sort(localArray.begin(), localArray.end());
                     if (stepSize == observation.getNrSamplesPerBatch())
@@ -352,7 +352,7 @@ void medianOfMedians(const unsigned int stepSize, const std::vector<DataType> &t
                     }
                     else
                     {
-                        medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
+                        medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
                     }
                 }
             }
@@ -428,16 +428,16 @@ void medianOfMediansAbsoluteDeviation(const unsigned int stepSize, const std::ve
         {
             for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
             {
-                for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / stepSize; step++)
+                for (unsigned int step = 0; step < observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize; step++)
                 {
                     std::vector<DataType> localArray;
 
                     for (unsigned int sample = 0; sample < stepSize; sample++)
                     {
-                        localArray.push_back(std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (step * stepSize) + sample) - baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm)));
+                        localArray.push_back(std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (step * stepSize) + sample) - baselines.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm)));
                     }
                     std::sort(localArray.begin(), localArray.end());
-                    medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
+                    medians.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize, padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling() / stepSize, padding / sizeof(DataType))) + step) = localArray.at(stepSize / 2);
                 }
             }
         }
@@ -507,9 +507,9 @@ void absoluteDeviation(const std::vector<DataType> &baselines, const std::vector
         {
             for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
             {
-                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch() / observation.getDownsampling(); sample++)
                 {
-                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(DataType))) + sample) - baselines.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm));
+                    absoluteDeviations.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample) = std::abs(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample) - baselines.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * (padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm));
                 }
             }
         }
@@ -680,30 +680,28 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
     }
     // Begin kernel's template
     *code = "__kernel void snrSamplesDMs" + std::to_string(nrDMs) + "(__global const " + dataName + " * const restrict input, __global float * const restrict outputSNR, __global unsigned int * const restrict outputSample) {\n"
-                                                                                                    "unsigned int dm = (get_group_id(0) * " +
-            std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
-                                                                          "float delta = 0.0f;\n"
-                                                                          "<%DEF%>"
-                                                                          "\n"
-                                                                          "for ( unsigned int sample = 1; sample < " +
-            std::to_string(nrSamples) + "; sample++ ) {\n" + dataName + " item = 0;\n"
-                                                                        "<%COMPUTE%>"
-                                                                        "}\n"
-                                                                        "<%STORE%>"
-                                                                        "}\n";
+    "unsigned int dm = (get_group_id(0) * " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
+    "float delta = 0.0f;\n"
+    "<%DEF%>"
+    "\n"
+    "for ( unsigned int sample = 1; sample < " + std::to_string(nrSamples) + "; sample++ ) {\n" + dataName + " item = 0;\n"
+    "<%COMPUTE%>"
+    "}\n"
+    "<%STORE%>"
+    "}\n";
     std::string def_sTemplate = "float counter<%NUM%> = 1.0f;\n" + dataName + " max<%NUM%> = input[get_group_id(1) + <%OFFSET%>];\n"
-                                                                              "unsigned int maxSample<%NUM%> = 0;\n"
-                                                                              "float variance<%NUM%> = 0.0f;\n"
-                                                                              "float mean<%NUM%> = max<%NUM%>;\n";
+    "unsigned int maxSample<%NUM%> = 0;\n"
+    "float variance<%NUM%> = 0.0f;\n"
+    "float mean<%NUM%> = max<%NUM%>;\n";
     std::string compute_sTemplate = "item = input[(beam * " + std::to_string(nrSamples * isa::utils::pad(nrDMs, padding / sizeof(T))) + ") + (sample * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(T))) + ")  + (dm + <%OFFSET%>)];\n"
-                                                                                                                                                                                                                         "counter<%NUM%> += 1.0f;\n"
-                                                                                                                                                                                                                         "delta = item - mean<%NUM%>;\n"
-                                                                                                                                                                                                                         "mean<%NUM%> += delta / counter<%NUM%>;\n"
-                                                                                                                                                                                                                         "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
-                                                                                                                                                                                                                         "if ( item > max<%NUM%> ) {\n"
-                                                                                                                                                                                                                         "max<%NUM%> = item;\n"
-                                                                                                                                                                                                                         "maxSample<%NUM%> = sample;\n"
-                                                                                                                                                                                                                         "}\n";
+    "counter<%NUM%> += 1.0f;\n"
+    "delta = item - mean<%NUM%>;\n"
+    "mean<%NUM%> += delta / counter<%NUM%>;\n"
+    "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
+    "if ( item > max<%NUM%> ) {\n"
+    "max<%NUM%> = item;\n"
+    "maxSample<%NUM%> = sample;\n"
+    "}\n";
     std::string store_sTemplate = "outputSNR[(beam * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
     // End kernel's template
 
