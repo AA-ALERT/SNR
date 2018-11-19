@@ -162,57 +162,83 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         nrDMs = observation.getNrDMs();
     }
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
+
     // Generate source code
-    *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices) {\n"
+    *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global \" + dataName + \" * const restrict stdevs) {\n"
         "<%LOCAL_VARIABLES%>"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local unsigned int reduction_index[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "\n"
-        "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
-        + dataName + " value;\n"
-        "\n"
-        "<%LOCAL_COMPUTE%>"
+
+        "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
+        "{\n"
+            + dataName + " value;\n"
+            "\n"
+            "<%LOCAL_COMPUTE%>"
         "}\n"
         "<%LOCAL_REDUCE%>"
         "reduction_value[get_local_id(0)] = value_0;\n"
         "reduction_index[get_local_id(0)] = index_0;\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
+
         "unsigned int threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
         "for ( unsigned int value_id = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
-        "if ( (value_id < threshold) && (reduction_value[value_id + threshold] > value_0) ) {\n"
-        "value_0 = reduction_value[value_id + threshold];\n"
-        "reduction_value[value_id] = value_0;\n"
-        "index_0 = reduction_index[value_id + threshold];\n"
-        "reduction_index[value_id] = index_0;\n"
+            "if ( (value_id < threshold) && (reduction_value[value_id + threshold] > value_0) ) {\n"
+                "value_0 = reduction_value[value_id + threshold];\n"
+                "reduction_value[value_id] = value_0;\n"
+                "index_0 = reduction_index[value_id + threshold];\n"
+                "reduction_index[value_id] = index_0;\n"
+            "}\n"
+            "barrier(CLK_LOCAL_MEM_FENCE);\n"
         "}\n"
-        "barrier(CLK_LOCAL_MEM_FENCE);\n"
-        "}\n"
+
+        "// Reduce phase\n"
         "if ( get_local_id(0) == 0 ) {\n"
-        "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
-        "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
+            "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
+            "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
         "}\n"
-        "}\n";
+    "}\n";
+
+    // Variables declaration
     std::string localVariablesTemplate = dataName + " value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
-        "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n";
+        "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n"
+        "float counter_<%ITEM_NUMBER%> = 1.0f;\n"
+        "float variance_<%ITEM_NUMBER%> = 0.0f;\n"
+        "float mean_<%ITEM_NUMBER%> = max_<%ITEM_NUMBER%>;\n";
+
+    // LOCAL COMPUTE
+    // if time_series requested range is less than available values, no index check is required.
     std::string localComputeNoCheckTemplate = "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
+        "counter_<%ITEM_NUMBER%> += 1.0f;\n"
+        "delta = value - mean_<%ITEM_NUMBER%>;\n"
+        "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
+        "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
         "if ( value > value_<%ITEM_NUMBER%> ) {\n"
-        "value_<%ITEM_NUMBER%> = value;\n"
-        "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
-        "}\n";
+            "value_<%ITEM_NUMBER%> = value;\n"
+            "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
+        "}\n"
+        "stdevs[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>] = native_sqrt(variance<%ITEM_NUMBER%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";;
+
+    // if time_series requested range is larger than remaining values available, index check is required.
     std::string localComputeCheckTemplate = "if ( value_id + <%ITEM_OFFSET%> < " + std::to_string(nrSamples) + " ) {\n"
         "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
         "if ( value > value_<%ITEM_NUMBER%> ) {\n"
-        "value_<%ITEM_NUMBER%> = value;\n"
-        "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
+            "value_<%ITEM_NUMBER%> = value;\n"
+            "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
         "}\n"
-        "}\n";
+        "}\n"
+        "stdevs[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>] = native_sqrt(variance<%ITEM_NUMBER%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
+
+    // LOCAL REDUCE
     std::string localReduceTemplate = "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
         "value_0 = value_<%ITEM_NUMBER%>;\n"
         "index_0 = index_<%ITEM_NUMBER%>;\n"
         "}\n";
+
     std::string localVariables;
     std::string localCompute;
     std::string localReduce;
+
     for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
     {
         std::string *temp;
@@ -553,6 +579,7 @@ std::string *getSNRDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "reductionMEA[get_local_id(0)] = mean0;\n"
         "reductionVAR[get_local_id(0)] = variance0;\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
+
         "// Reduce phase\n"
         "unsigned int threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
         "for ( unsigned int sample = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
@@ -680,28 +707,33 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
     }
     // Begin kernel's template
     *code = "__kernel void snrSamplesDMs" + std::to_string(nrDMs) + "(__global const " + dataName + " * const restrict input, __global float * const restrict outputSNR, __global unsigned int * const restrict outputSample) {\n"
-    "unsigned int dm = (get_group_id(0) * " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
-    "float delta = 0.0f;\n"
-    "<%DEF%>"
-    "\n"
-    "for ( unsigned int sample = 1; sample < " + std::to_string(nrSamples) + "; sample++ ) {\n" + dataName + " item = 0;\n"
-    "<%COMPUTE%>"
-    "}\n"
-    "<%STORE%>"
+        "unsigned int dm = (get_group_id(0) * " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + ") + get_local_id(0);\n"
+        "float delta = 0.0f;\n"
+        "<%DEF%>"
+        "\n"
+        "for ( unsigned int sample = 1; sample < " + std::to_string(nrSamples) + "; sample++ ) {\n"
+            + dataName + " item = 0;\n"
+            "<%COMPUTE%>"
+        "}\n"
+        "<%STORE%>"
     "}\n";
-    std::string def_sTemplate = "float counter<%NUM%> = 1.0f;\n" + dataName + " max<%NUM%> = input[get_group_id(1) + <%OFFSET%>];\n"
+
+    std::string def_sTemplate = "float counter<%NUM%> = 1.0f;\n"
+    + dataName + " max<%NUM%> = input[get_group_id(1) + <%OFFSET%>];\n"
     "unsigned int maxSample<%NUM%> = 0;\n"
     "float variance<%NUM%> = 0.0f;\n"
     "float mean<%NUM%> = max<%NUM%>;\n";
+
     std::string compute_sTemplate = "item = input[(beam * " + std::to_string(nrSamples * isa::utils::pad(nrDMs, padding / sizeof(T))) + ") + (sample * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(T))) + ")  + (dm + <%OFFSET%>)];\n"
     "counter<%NUM%> += 1.0f;\n"
     "delta = item - mean<%NUM%>;\n"
     "mean<%NUM%> += delta / counter<%NUM%>;\n"
     "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
     "if ( item > max<%NUM%> ) {\n"
-    "max<%NUM%> = item;\n"
-    "maxSample<%NUM%> = sample;\n"
+        "max<%NUM%> = item;\n"
+        "maxSample<%NUM%> = sample;\n"
     "}\n";
+
     std::string store_sTemplate = "outputSNR[(beam * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + dm + <%OFFSET%>] = (max<%NUM%> - mean<%NUM%>) / native_sqrt(variance<%NUM%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
     // End kernel's template
 
