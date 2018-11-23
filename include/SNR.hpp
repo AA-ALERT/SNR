@@ -205,7 +205,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n"
         "float counter_<%ITEM_NUMBER%> = 1.0f;\n"
         "float variance_<%ITEM_NUMBER%> = 0.0f;\n"
-        "float mean_<%ITEM_NUMBER%> = max_<%ITEM_NUMBER%>;\n";
+        "float mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n";
 
     // LOCAL COMPUTE
     // if time_series requested range is less than available values, no index check is required.
