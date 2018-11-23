@@ -32,7 +32,7 @@
 #include <utils.hpp>
 #include <Timer.hpp>
 
-void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *outputSample_d, const uint64_t outputSample_size);
+void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *outputSample_d, cl::Buffer *stdevs_d, const uint64_t outputSample_size);
 void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *baselines_d, std::vector<outputDataType> *baselines);
 int tune(const bool bestMode, const unsigned int nrIterations, const unsigned int minThreads, const unsigned int maxThreads, const unsigned int maxItems, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelTuned, const unsigned int padding, const AstroData::Observation &observation, SNR::snrConf &conf, const unsigned int medianStep = 0);
 
@@ -151,13 +151,14 @@ int main(int argc, char *argv[])
     return returnCode;
 }
 
-void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *outputSample_d, const uint64_t outputSample_size)
+void initializeDeviceMemoryD(cl::Context &clContext, cl::CommandQueue *clQueue, std::vector<inputDataType> *input, cl::Buffer *input_d, cl::Buffer *outputValue_d, const uint64_t outputSNR_size, cl::Buffer *outputSample_d, cl::Buffer *stdevs_d, const uint64_t outputSample_size)
 {
     try
     {
         *input_d = cl::Buffer(clContext, CL_MEM_READ_WRITE, input->size() * sizeof(inputDataType), 0, 0);
         *outputValue_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, outputSNR_size, 0, 0);
         *outputSample_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, outputSample_size, 0, 0);
+        *stdevs_d = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, outputSNR_size, 0, 0);
         clQueue->enqueueWriteBuffer(*input_d, CL_FALSE, 0, input->size() * sizeof(inputDataType), reinterpret_cast<void *>(input->data()));
         clQueue->finish();
     }
@@ -202,7 +203,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
     // Allocate memory
     std::vector<inputDataType> input;
     std::vector<outputDataType> baselines;
-    cl::Buffer input_d, outputValue_d, outputSample_d, baselines_d;
+    cl::Buffer input_d, outputValue_d, outputSample_d, baselines_d, stdevs_d;
 
     if (ordering == SNR::DataOrdering::DMsSamples)
     {
@@ -417,11 +418,11 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 {
                     if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)) * sizeof(unsigned int));
+                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, &stdevs_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)) * sizeof(unsigned int));
                     }
                     else if (kernelTuned == SNR::Kernel::MedianOfMedians)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, 1);
+                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, &stdevs_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, 1);
                     }
                     else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
                     {
@@ -523,6 +524,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 kernel->setArg(0, input_d);
                 kernel->setArg(1, outputValue_d);
                 kernel->setArg(2, outputSample_d);
+                kernel->setArg(3, stdevs_d);
             }
             else if (kernelTuned == SNR::Kernel::MedianOfMedians)
             {
