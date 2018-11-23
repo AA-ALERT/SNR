@@ -418,11 +418,11 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 {
                     if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, &stdevs_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)) * sizeof(unsigned int));
+                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, &stdevs_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)) * sizeof(unsigned int));
                     }
                     else if (kernelTuned == SNR::Kernel::MedianOfMedians)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, &stdevs_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, 1);
+                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)) * sizeof(outputDataType), &outputSample_d, &stdevs_d, 1);
                     }
                     else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
                     {
