@@ -157,7 +157,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     std::vector<outputDataType> output;
     std::vector<unsigned int> outputIndex;
     std::vector<outputDataType> baselines;
-    cl::Buffer input_d, output_d, outputIndex_d, baselines_d;
+    cl::Buffer input_d, output_d, outputIndex_d, baselines_d, stdevs_d;
 
     if (ordering == SNR::DataOrdering::DMsSamples)
     {
@@ -196,6 +196,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
         output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
+        stdevs_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
         if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
         {
             outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
@@ -473,6 +474,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
             kernel->setArg(0, input_d);
             kernel->setArg(1, output_d);
             kernel->setArg(2, outputIndex_d);
+            kernel->setArg(3, stdevs_d);
         }
         else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
         {
