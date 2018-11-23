@@ -217,7 +217,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "value_<%ITEM_NUMBER%> = value;\n"
             "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
         "}\n"
-        "stdevs[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>] = native_sqrt(variance<%ITEM_NUMBER%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";;
+        "stdevs[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>] = native_sqrt(variance_<%ITEM_NUMBER%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";;
 
     // if time_series requested range is larger than remaining values available, index check is required.
     std::string localComputeCheckTemplate = "if ( value_id + <%ITEM_OFFSET%> < " + std::to_string(nrSamples) + " ) {\n"
@@ -227,7 +227,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
         "}\n"
         "}\n"
-        "stdevs[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>] = native_sqrt(variance<%ITEM_NUMBER%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
+        "stdevs[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>] = native_sqrt(variance_<%ITEM_NUMBER%> * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n";
 
     // LOCAL REDUCE
     std::string localReduceTemplate = "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
