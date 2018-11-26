@@ -469,7 +469,13 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                 local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
             }
         }
-        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
+        if (kernelUnderTest == SNR::Kernel::SNR)
+        {
+            kernel->setArg(0, input_d);
+            kernel->setArg(1, output_d);
+            kernel->setArg(2, outputIndex_d);
+        }
+        else if(kernelUnderTest == SNR::Kernel::Max)
         {
             kernel->setArg(0, input_d);
             kernel->setArg(1, output_d);
