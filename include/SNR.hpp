@@ -223,7 +223,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n"
         "float counter_<%ITEM_NUMBER%> = 1.0f;\n"
         "float variance_<%ITEM_NUMBER%> = 0.0f;\n"
-        "float mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n";
+        "float mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n\n";
 
     // LOCAL COMPUTE
     // if time_series requested range is less than available values, no index check is required.
@@ -235,7 +235,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "if ( value > value_<%ITEM_NUMBER%> ) {\n"
             "value_<%ITEM_NUMBER%> = value;\n"
             "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
-        "}\n";
+        "}\n\n";
 
     // if time_series requested range is larger than remaining values available, index check is required.
     std::string localComputeCheckTemplate = "if ( value_id + <%ITEM_OFFSET%> < " + std::to_string(nrSamples) + " ) {\n"
@@ -244,7 +244,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
                 "value_<%ITEM_NUMBER%> = value;\n"
                 "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
             "}\n"
-        "}\n";
+        "}\n\n";
 
     // LOCAL REDUCE
     std::string localReduceTemplate = "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
@@ -254,7 +254,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "delta = mean_<%ITEM_NUMBER%> - mean_0;\n"
         "counter_0 += counter_<%ITEM_NUMBER%>;\n"
         "mean_0 = (((counter_0 - counter_<%ITEM_NUMBER%>) * mean_0) + (counter_<%ITEM_NUMBER%> * mean_<%ITEM_NUMBER%>)) / counter_0;\n"
-        "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n";
+        "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n\n";
 
     std::string localVariables;
     std::string localCompute;
