@@ -199,11 +199,11 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
                 "variance_0 += reductionVAR[value_id + threshold] + ((delta * delta) * ((reductionCOU[value_id] * reductionCOU[value_id + threshold]) / counter_0));\n"
                 "if (reduction_value[value_id + threshold] > value_0) {"
                     "value_0 = reduction_value[value_id + threshold];\n"
-                    "reduction_value[value_id] = value_0;\n"
                     "index_0 = reduction_index[value_id + threshold];\n"
-                    "reduction_index[value_id] = index_0;\n"
                 "}\n"
                 "reductionCOU[value_id] = counter_0;\n"
+                "reduction_value[value_id] = value_0;\n"
+                "reduction_index[value_id] = index_0;\n"
                 "reductionMEA[value_id] = mean_0;\n"
                 "reductionVAR[value_id] = variance_0;\n"
             "}\n"
@@ -214,7 +214,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "if ( get_local_id(0) == 0 ) {\n"
             "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
             "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
-            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f / (observation.getNrSamplesPerBatch() - 1)) + "f);\n"
+            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f/(observation.getNrSamplesPerBatch()- 1)) + "f);\n"
         "}\n"
     "}\n";
 
@@ -240,6 +240,10 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     // if time_series requested range is larger than remaining values available, index check is required.
     std::string localComputeCheckTemplate = "if ( value_id + <%ITEM_OFFSET%> < " + std::to_string(nrSamples) + " ) {\n"
             "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
+            "counter_<%ITEM_NUMBER%> += 1.0f;\n"
+            "delta = value - mean_<%ITEM_NUMBER%>;\n"
+            "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
+            "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
             "if ( value > value_<%ITEM_NUMBER%> ) {\n"
                 "value_<%ITEM_NUMBER%> = value;\n"
                 "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
@@ -247,14 +251,14 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "}\n\n";
 
     // LOCAL REDUCE
-    std::string localReduceTemplate = "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
-        "value_0 = value_<%ITEM_NUMBER%>;\n"
-        "index_0 = index_<%ITEM_NUMBER%>;\n"
-        "}\n"
-        "delta = mean_<%ITEM_NUMBER%> - mean_0;\n"
+    std::string localReduceTemplate = "delta = mean_<%ITEM_NUMBER%> - mean_0;\n"
         "counter_0 += counter_<%ITEM_NUMBER%>;\n"
         "mean_0 = (((counter_0 - counter_<%ITEM_NUMBER%>) * mean_0) + (counter_<%ITEM_NUMBER%> * mean_<%ITEM_NUMBER%>)) / counter_0;\n"
-        "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n\n";
+        "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n"
+        "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
+            "value_0 = value_<%ITEM_NUMBER%>;\n"
+            "index_0 = index_<%ITEM_NUMBER%>;\n"
+        "}\n"
 
     std::string localVariables;
     std::string localCompute;
