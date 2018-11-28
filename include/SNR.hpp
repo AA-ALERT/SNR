@@ -258,7 +258,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
             "value_0 = value_<%ITEM_NUMBER%>;\n"
             "index_0 = index_<%ITEM_NUMBER%>;\n"
-        "}\n"
+        "}\n";
 
     std::string localVariables;
     std::string localCompute;
