@@ -214,7 +214,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "if ( get_local_id(0) == 0 ) {\n"
             "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
             "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
-            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f/((observation.getNrSamplesPerBatch() / downsampling)- 1)) + "f);\n"
+            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
         "}\n"
     "}\n";
 
@@ -572,7 +572,7 @@ std::string *getSNRDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 {
     std::string *code = new std::string();
     unsigned int nrDMs = 0;
-    
+
     if (conf.getSubbandDedispersion())
     {
         nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
