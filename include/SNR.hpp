@@ -214,7 +214,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "if ( get_local_id(0) == 0 ) {\n"
             "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
             "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
-            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f/(observation.getNrSamplesPerBatch()- 1)) + "f);\n"
+            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f/((observation.getNrSamplesPerBatch() / downsampling)- 1)) + "f);\n"
         "}\n"
     "}\n";
 
@@ -231,7 +231,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "counter_<%ITEM_NUMBER%> += 1.0f;\n"
         "delta = value - mean_<%ITEM_NUMBER%>;\n"
         "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
-        "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
+        "variance_<%ITEM_NUMBER%> += delta * delta;\n"
         "if ( value > value_<%ITEM_NUMBER%> ) {\n"
             "value_<%ITEM_NUMBER%> = value;\n"
             "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
@@ -243,7 +243,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "counter_<%ITEM_NUMBER%> += 1.0f;\n"
             "delta = value - mean_<%ITEM_NUMBER%>;\n"
             "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
-            "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
+            "variance_<%ITEM_NUMBER%> += delta * delta;\n"
             "if ( value > value_<%ITEM_NUMBER%> ) {\n"
                 "value_<%ITEM_NUMBER%> = value;\n"
                 "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
