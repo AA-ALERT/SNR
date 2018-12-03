@@ -331,7 +331,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     std::string localReduceTemplate_2 = "delta = mean_<%ITEM_NUMBER%> - mean_0;\n"
         "counter_0 += counter_<%ITEM_NUMBER%>;\n"
         "mean_0 = (((counter_0 - counter_<%ITEM_NUMBER%>) * mean_0) + (counter_<%ITEM_NUMBER%> * mean_<%ITEM_NUMBER%>)) / counter_0;\n"
-        "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n"
+        "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n";
 
     std::string localVariables;
     std::string localCompute;
