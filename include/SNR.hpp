@@ -230,18 +230,15 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "///////////////"
         "//Step 2 (stdev that excludes 3sigma)"
         "///////////////\n"
-        "Re-initialise some variables\n"
-        "counter_<%ITEM_NUMBER%> = 1.0f;\n"
-        "variance_<%ITEM_NUMBER%> = 0.0f;\n"
-        "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n\n"
-        "float count = 0.0f;"
+        "//Re-initialise some variables\n"
+        "<%LOCAL_VARIABLES_2%>"
         "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
         "{\n"
             + dataName + " value;\n"
             "\n"
             "<%LOCAL_COMPUTE_2%>"
         "}\n\n"
-        "<%LOCAL_REDUCE%>"
+        "<%LOCAL_REDUCE_2%>"
         "reductionCOU[get_local_id(0)] = counter_0;\n"
         "reductionMEA[get_local_id(0)] = mean_0;\n"
         "reductionVAR[get_local_id(0)] = variance_0;\n"
@@ -264,7 +261,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 
         "// Store\n"
         "if ( get_local_id(0) == 0 ) {\n"
-            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * " + std::to_string(1.0f/(count - 1)) + "f);\n"
+            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * 1.0f/(count - 1)f;\n"
         "}\n"
         "///////////////"
         "//END OF Step 2"
@@ -277,6 +274,11 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "float counter_<%ITEM_NUMBER%> = 1.0f;\n"
         "float variance_<%ITEM_NUMBER%> = 0.0f;\n"
         "float mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n\n";
+
+    std::string localVariablesTemplate2 = "counter_<%ITEM_NUMBER%> = 1.0f;\n"
+        "variance_<%ITEM_NUMBER%> = 0.0f;\n"
+        "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n\n"
+        "float count = 0.0f;\n"
 
     // LOCAL COMPUTE
     // if time_series requested range is less than available values, no index check is required.
@@ -340,6 +342,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n";
 
     std::string localVariables;
+    std::string localVariables2;
     std::string localCompute;
     std::string localCompute2;
     std::string localReduce;
@@ -360,6 +363,17 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
         }
         localVariables.append(*temp);
+        delete temp;
+        temp = isa::utils::replace(&localVariablesTemplate2, "<%ITEM_NUMBER%>", itemString);
+        if (item == 0)
+        {
+            temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
+        }
+        else
+        {
+            temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
+        }
+        localVariables2.append(*temp);
         delete temp;
         if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) == 0)
         {
@@ -411,10 +425,11 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         }
     }
     code = isa::utils::replace(code, "<%LOCAL_VARIABLES%>", localVariables, true);
+    code = isa::utils::replace(code, "<%LOCAL_VARIABLES_2%>", localVariables2, true);
     code = isa::utils::replace(code, "<%LOCAL_COMPUTE%>", localCompute, true);
     code = isa::utils::replace(code, "<%LOCAL_REDUCE%>", localReduce, true);
     code = isa::utils::replace(code, "<%LOCAL_COMPUTE_2%>", localCompute2, true);
-    code = isa::utils::replace(code, "<%LOCAL_REDUCE%>", localReduce2, true);
+    code = isa::utils::replace(code, "<%LOCAL_REDUCE_2%>", localReduce2, true);
     return code;
 }
 
