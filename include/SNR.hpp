@@ -182,7 +182,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 
         "///////////////"
         "//Step 1"
-        "///////////////"
+        "///////////////\n"
         "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
         "{\n"
             + dataName + " value;\n"
@@ -225,11 +225,11 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "}\n"
         "///////////////"
         "//END OF Step 1"
-        "///////////////"
+        "///////////////\n"
 
         "///////////////"
         "//Step 2 (stdev that excludes 3sigma)"
-        "///////////////"
+        "///////////////\n"
         "stdev_temp = stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)];\n"
         "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
         "{\n"
@@ -264,7 +264,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "}\n"
         "///////////////"
         "//END OF Step 2"
-        "///////////////"
+        "///////////////\n"
     "}\n";
 
     // Variables declaration
@@ -397,7 +397,6 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             localReduce.append(*temp);
             delete temp;
         }
-        delete temp;
         if (item > 0)
         {
             temp = isa::utils::replace(&localReduceTemplate_2, "<%ITEM_NUMBER%>", itemString);
