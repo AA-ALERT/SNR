@@ -221,7 +221,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
             "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
             "stdev_temp = native_sqrt(variance_0 * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
-        "}\n"
+        "}\n\n";
 
 // And 2;
         "<%LOCAL_VARIABLES_2%>"
@@ -237,7 +237,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "reductionVAR[get_local_id(0)] = variance_0;\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n\n"
 
-        "unsigned int threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
+        "threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
         "for ( unsigned int value_id = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
             "if ( (value_id < threshold)) {\n"
                 "delta = reductionMEA[value_id + threshold] - mean_0;\n"
@@ -253,10 +253,9 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 
         "// Store\n"
         "if ( get_local_id(0) == 0 ) {\n"
-            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * 1.0f/(counter_stdev - 1)f);\n"
-        "}\n"
-
-    "}\n";
+            "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(variance_0 * 1.0f/(counter_stdev - 1.0f));\n"
+        "}}\n"
+    "\n";
 
 //And 1.
     // Variables declaration
@@ -389,7 +388,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     // And 2
     std::string localVariables_2;
     std::string localCompute_2;
-    std::string localReduce_#;
+    std::string localReduce_2;
 
     for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
     {
@@ -432,9 +431,9 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             delete temp;
         }
     }
-    code = isa::utils::replace(code, "<%LOCAL_VARIABLES%>", localVariables, true);
-    code = isa::utils::replace(code, "<%LOCAL_COMPUTE%>", localCompute, true);
-    code = isa::utils::replace(code, "<%LOCAL_REDUCE%>", localReduce, true);
+    code = isa::utils::replace(code, "<%LOCAL_VARIABLES_2%>", localVariables_2, true);
+    code = isa::utils::replace(code, "<%LOCAL_COMPUTE_2%>", localCompute_2, true);
+    code = isa::utils::replace(code, "<%LOCAL_REDUCE_2%>", localReduce_2, true);
 
     // Cha cha cha
     return code;
