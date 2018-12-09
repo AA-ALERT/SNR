@@ -179,6 +179,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "__local          float   reductionSTD[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "                 float   delta = 0.0f;\n"
         "                 float   mean = 0.0f;\n"
+        "                 float   nsigma = 30000.0f;\n"
         "\n\n"
 
 // And 1,
@@ -303,14 +304,20 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 
 //And 2.
     // Variables declaration
-    std::string localVariablesTemplate_2 = "counter_<%ITEM_NUMBER%> = 1.0f;\n"
-                                           "variance_<%ITEM_NUMBER%> = 0.0f;\n"
-                                           "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n\n";
+    std::string localVariablesTemplate_2 = "variance_<%ITEM_NUMBER%> = 0.0f;\n"
+                                           "if ( (value < mean - (nsigma * stdev_temp)) ) {"
+                                                "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n"
+                                                "counter_<%ITEM_NUMBER%> = 1.0f;\n"
+                                            "} else {\n"
+                                                "mean_<%ITEM_NUMBER%> = 0.0f;\n\n"
+                                                "counter_<%ITEM_NUMBER%> = 0.0f;\n"
+                                            "}";
+
 
     // LOCAL COMPUTE
     // if time_series requested range is less than available values, no index check is required.
     std::string localComputeNoCheckTemplate_2 = "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
-      "if ( (value < mean - (3.0f * stdev_temp)) ) {\n"
+      "if ( (value < mean - (nsigma * stdev_temp)) ) {\n"
           "counter_<%ITEM_NUMBER%> += 1.0f;\n"
           "delta = value - mean_<%ITEM_NUMBER%>;\n"
           "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
@@ -320,7 +327,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     // if time_series requested range is larger than remaining values available, index check is required.
     std::string localComputeCheckTemplate_2 = "if ( value_id + <%ITEM_OFFSET%> < " + std::to_string(nrSamples) + " ) {\n"
             "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
-            "if ( (value < mean - (3.0f * stdev_temp)) ) {\n"
+            "if ( (value < mean - (nsigma * stdev_temp)) ) {\n"
               "counter_<%ITEM_NUMBER%> += 1.0f;\n"
               "delta = value - mean_<%ITEM_NUMBER%>;\n"
               "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
