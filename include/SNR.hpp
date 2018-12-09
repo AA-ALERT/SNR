@@ -180,6 +180,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "                 float   delta = 0.0f;\n"
         "                 float   mean = 0.0f;\n"
         "                 float   nsigma = 30000.0f;\n"
+        "                 float   stdev_temp = 0.0f;\n"
         "\n\n"
 
 // And 1,
