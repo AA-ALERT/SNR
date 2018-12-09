@@ -305,7 +305,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 //And 2.
     // Variables declaration
     std::string localVariablesTemplate_2 = "variance_<%ITEM_NUMBER%> = 0.0f;\n"
-                                           "if ( (value < mean - (nsigma * stdev_temp)) ) {"
+                                           "if ( (value_<%ITEM_NUMBER%> < mean - (nsigma * stdev_temp)) ) {"
                                                 "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n"
                                                 "counter_<%ITEM_NUMBER%> = 1.0f;\n"
                                             "} else {\n"
