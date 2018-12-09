@@ -225,6 +225,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "stdev_temp = native_sqrt(variance_0 * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
             "mean = mean_0;\n"
         "}\n\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
 
 // And 2;
         "<%LOCAL_VARIABLES_2%>"
@@ -263,7 +264,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 //And 1.
     // Variables declaration
     std::string localVariablesTemplate = dataName + " value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
-        "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n"
+            "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n"
         "float counter_<%ITEM_NUMBER%> = 1.0f;\n"
         "float variance_<%ITEM_NUMBER%> = 0.0f;\n"
         "float mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n\n";
