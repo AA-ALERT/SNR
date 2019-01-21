@@ -167,6 +167,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
         "<%LOCAL_VARIABLES%>"
         "float nsigma = 3.;\n"
+        "float stdev_step1 = 1.0f;\n"
         "float threshold_step2 = FLT_MIN;\n"
         "\n\n"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
@@ -175,7 +176,6 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "__local          float   reductionCOU[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local          float   reductionMEA[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local          float   reductionVAR[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
-        "__local          float   stdev_step1[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "                 float   delta = 0.0f;\n"
         "\n\n"
 
@@ -218,8 +218,10 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
         "if ( get_local_id(0) == 0 ) {\n"
             "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
             "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
-            "stdev_step1[get_local_id(0)] = native_sqrt(variance_0 * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
         "}\n\n"
+        "stdev_step1 = native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
+        "threshold_step2 = mean_0 + (nsigma * stdev_step1);\n"
+	"barrier(CLK_LOCAL_MEM_FENCE);\n"
 
 // And 2;
         "<%LOCAL_VARIABLES_2%>"
@@ -302,7 +304,6 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     // Variables declaration
     std::string localVariablesTemplate_2 = "value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
                                            "variance_<%ITEM_NUMBER%> = 0.0f;\n"
-                                           "threshold_step2 = mean_0 + (nsigma * stdev_step1[get_local_id(0)]);\n"
                                            "if ( value_<%ITEM_NUMBER%> < threshold_step2 ) {\n"
                                                 "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n"
                                                 "counter_<%ITEM_NUMBER%> = 1.0f;\n"
