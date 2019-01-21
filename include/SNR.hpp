@@ -167,8 +167,6 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
         "<%LOCAL_VARIABLES%>"
         "float nsigma = 3.0;\n"
-        "float stdev_step1 = 1.0f;\n"
-        "float threshold_step2 = FLT_MIN;\n"
         "\n\n"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local unsigned int     reduction_index[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
@@ -219,8 +217,8 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
             "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
         "}\n\n"
-        "stdev_step1 = native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
-        "threshold_step2 = reductionMEA[0] + (nsigma * stdev_step1);\n"
+        "float stdev_step1 = native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
+        "float threshold_step2 = reductionMEA[0] + (nsigma * stdev_step1);\n"
 	"barrier(CLK_LOCAL_MEM_FENCE);\n"
 
 // And 2;
