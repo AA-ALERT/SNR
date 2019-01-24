@@ -80,12 +80,12 @@ std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, cons
 template <typename DataType>
 std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
 /**
- ** @brief Generate OpenCL code for the SNR "sigma cut" kernel.
+ ** @brief Generate OpenCL code for the max and standard deviation using a "sigma cut" kernel.
  */
 template <typename DataType>
-std::string *getSnrSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
+std::string *getMaxStdSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
 template <typename DataType>
-std::string *getSnrSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
+std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
 /**
  ** @brief Generate OpenCL code for the median of medians kernel.
  */
@@ -142,19 +142,19 @@ inline void snrConf::setSubbandDedispersion(bool subband)
 }
 
 template <typename DataType>
-std::string *getSnrSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
+std::string *getMaxStdSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
 {
     std::string *code = 0;
 
     if (ordering == DataOrdering::DMsSamples)
     {
-        code = getSnrSigmaCutDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding, nSigma);
+        code = getMaxStdSigmaCutDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding, nSigma);
     }
     return code;
 }
 
 template <typename DataType>
-std::string *getSnrSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
+std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
 {
     std::string *code = new std::string();
     unsigned int nrSamples = 0;
@@ -171,7 +171,7 @@ std::string *getSnrSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
 
     // Generate source code
-    *code = "__kernel void getSnrSigmaCut_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
+    *code = "__kernel void getMaxStdSigmaCut_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
         "<%LOCAL_VARIABLES%>"
         "\n\n"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
