@@ -80,6 +80,13 @@ std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, cons
 template <typename DataType>
 std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding);
 /**
+ ** @brief Generate OpenCL code for the SNR "sigma cut" kernel.
+ */
+template <typename DataType>
+std::string *getSnrSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
+template <typename DataType>
+std::string *getSnrSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
+/**
  ** @brief Generate OpenCL code for the median of medians kernel.
  */
 template <typename DataType>
@@ -135,19 +142,19 @@ inline void snrConf::setSubbandDedispersion(bool subband)
 }
 
 template <typename DataType>
-std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
+std::string *getSnrSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
 {
     std::string *code = 0;
 
     if (ordering == DataOrdering::DMsSamples)
     {
-        code = getMaxDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
+        code = getSnrSigmaCutDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding, nSigma);
     }
     return code;
 }
 
 template <typename DataType>
-std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
+std::string *getSnrSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
 {
     std::string *code = new std::string();
     unsigned int nrSamples = 0;
@@ -164,9 +171,8 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
 
     // Generate source code
-    *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
+    *code = "__kernel void getSnrSigmaCut_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
         "<%LOCAL_VARIABLES%>"
-        "float nsigma = 3.0;\n"
         "\n\n"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local unsigned int     reduction_index[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
@@ -212,14 +218,9 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
             "barrier(CLK_LOCAL_MEM_FENCE);\n"
         "}\n\n"
 
-        "// Store\n"
-        "if ( get_local_id(0) == 0 ) {\n"
-            "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
-            "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
-        "}\n\n"
         "float stdev_step1 = native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
         "float mean_step1 = reductionMEA[0];\n"
-        "float threshold_step2 = reductionMEA[0] + (nsigma * stdev_step1);\n"
+        "float threshold_step2 = reductionMEA[0] + (" + std::to_string(nSigma) + " * stdev_step1);\n"
 	"barrier(CLK_LOCAL_MEM_FENCE);\n"
 
 // And 2;
@@ -252,6 +253,8 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
 
         "// Store\n"
         "if ( get_local_id(0) == 0 ) {\n"
+            "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = value_0;\n"
+            "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
             "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(reductionVAR[0] * 1.0f/(reductionCOU[0] - 1.0f));\n"
         "}\n"
     "}\n";
