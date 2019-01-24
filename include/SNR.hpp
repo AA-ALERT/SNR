@@ -66,6 +66,7 @@ enum Kernel
 {
     SNR,
     Max,
+    MaxStdSigmaCut,
     MedianOfMedians,
     MedianOfMediansAbsoluteDeviation,
     AbsoluteDeviation
@@ -86,6 +87,11 @@ template <typename DataType>
 std::string *getMaxStdSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
 template <typename DataType>
 std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma);
+/**
+ ** @brief CPU version of max and standard deviation using a "sigma cut" kernel.
+ */
+template <typename DataType>
+void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> &standardDeviations, const AstroData::Observation &observation, const unsigned int padding);
 /**
  ** @brief Generate OpenCL code for the median of medians kernel.
  */
@@ -170,7 +176,7 @@ std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &data
     }
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
     // Generate source code
-    *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices) {\n"
+    *code = "__kernel void max_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices) {\n"
         "<%LOCAL_VARIABLES%>"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "__local unsigned int reduction_index[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
@@ -297,7 +303,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
     nrSamples = observation.getNrSamplesPerBatch() / downsampling;
 
     // Generate source code
-    *code = "__kernel void getMaxStdSigmaCut_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
+    *code = "__kernel void maxStdSigmaCut_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices, __global " + dataName + " * const restrict stdevs) {\n"
         "<%LOCAL_VARIABLES%>"
         "\n\n"
         "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
@@ -375,8 +381,8 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
 
         "// Store\n"
         "if ( get_local_id(0) == 0 ) {\n"
-            "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = value_0;\n"
-            "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
+            "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = reduction_value[0];\n"
+            "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = reduction_index[0];\n"
             "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(reductionVAR[0] * 1.0f/(reductionCOU[0] - 1.0f));\n"
         "}\n"
     "}\n";
@@ -561,6 +567,68 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
     code = isa::utils::replace(code, "<%LOCAL_REDUCE_2%>", localReduce_2, true);
 
     return code;
+}
+
+template <typename DataType>
+void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> &standardDeviations, const AstroData::Observation &observation, const unsigned int padding, const float nSigma)
+{
+    float mean = FLT_MIN;
+    float mean_step2 = FLT_MIN;
+    float stdev = FLT_MIN;
+    float temp = FLT_MIN;
+    int counter = 0;
+
+    for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
+    {
+        for (unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++)
+        {
+            for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
+            {
+                // Step 1
+                for (unsigned int sample = 0; sample < stepSize; sample++)
+                {
+                    temp += timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
+
+                    counter += 1;
+                }
+                mean = temp / counter;
+                temp = FLT_MIN;
+
+                for (unsigned int sample = 0; sample < stepSize; sample++)
+                {
+                    temp += std::powf((timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample)) - mean, 2);
+                }
+
+                stdev = std::sqrtf(temp / counter);
+
+                // Step 2
+                for (unsigned int sample = 0; sample < stepSize; sample++)
+                {
+                    float value = timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
+
+                    if (std::fabs(value - mean) < (nSigma*stdev))
+                    {
+                      temp += value;
+                      counter += 1;
+                    }
+                }
+                mean_step2 = temp / counter;
+                temp = FLT_MIN;
+
+                for (unsigned int sample = 0; sample < stepSize; sample++)
+                {
+                    value = timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
+
+                    if (std::fabs(value - mean) < (nSigma*stdev))
+                    {
+                      temp += std::powf(value - mean_step2, 2);
+                    }
+                }
+
+                standardDeviations.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm) = std::sqrtf(temp / counter);
+            }
+        }
+    }
 }
 
 template <typename DataType>

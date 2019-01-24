@@ -32,7 +32,7 @@
 #include <SNR.hpp>
 #include <Statistics.hpp>
 
-int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0);
+int test(const bool printResults, const bool printCode, const unsigned int clPlatformID, const unsigned int clDeviceID, const SNR::DataOrdering ordering, const SNR::Kernel kernelUnderTest, const unsigned int padding, const AstroData::Observation &observation, const SNR::snrConf &conf, const unsigned int medianStep = 0, const float nSigma);
 
 int main(int argc, char *argv[])
 {
@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
     unsigned int clPlatformID = 0;
     unsigned int clDeviceID = 0;
     unsigned int stepSize = 0;
+    float nSigma = 3.0f;
     SNR::Kernel kernel;
     SNR::DataOrdering ordering;
     AstroData::Observation observation;
@@ -58,6 +59,10 @@ int main(int argc, char *argv[])
         else if (args.getSwitch("-max"))
         {
             kernel = SNR::Kernel::Max;
+        }
+        else if (args.getSwitch("-max_std"))
+        {
+            kernel = SNR::Kernel::MaxStdSigmaCut;
         }
         else if (args.getSwitch("-median"))
         {
@@ -93,6 +98,7 @@ int main(int argc, char *argv[])
         clPlatformID = args.getSwitchArgument<unsigned int>("-opencl_platform");
         clDeviceID = args.getSwitchArgument<unsigned int>("-opencl_device");
         padding = args.getSwitchArgument<unsigned int>("-padding");
+        nSigma = args.getSwitchArgument<float>("-nsigma");
         conf.setNrThreadsD0(args.getSwitchArgument<unsigned int>("-threadsD0"));
         if ((kernel == SNR::Kernel::SNR) || (kernel == SNR::Kernel::Max) || (kernel == SNR::Kernel::AbsoluteDeviation))
         {
@@ -128,7 +134,7 @@ int main(int argc, char *argv[])
         std::cerr << "\t -momad -median_step ..." << std::endl;
         return 1;
     }
-    if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::AbsoluteDeviation)
+    if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::MaxStdSigmaCut || kernel == SNR::Kernel::AbsoluteDeviation)
     {
         returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf);
     }
@@ -144,6 +150,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
 {
     uint64_t wrongSamples = 0;
     uint64_t wrongPositions = 0;
+    uint64_t wrongSamples_stdev = 0;
 
     // Initialize OpenCL
     cl::Context *clContext = new cl::Context();
@@ -157,6 +164,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     std::vector<outputDataType> output;
     std::vector<unsigned int> outputIndex;
     std::vector<outputDataType> baselines;
+    std::vector<outputDataType> stdevs;
     cl::Buffer input_d, output_d, outputIndex_d, baselines_d, stdevs_d;
 
     if (ordering == SNR::DataOrdering::DMsSamples)
@@ -170,6 +178,12 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
     {
         output.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float)));
+        outputIndex.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
+    }
+    if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+    {
+        output.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float)));
+        stdevs.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float)));
         outputIndex.resize(observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
     }
     else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
@@ -197,7 +211,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
         output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
         stdevs_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
-        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
             outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
         }
@@ -358,6 +372,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         code = SNR::getMaxOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding);
     }
+    else if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+    {
+        code = SNR::getMaxStdSigmaCutOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, padding, nSigma);
+    }
     else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
     {
         code = SNR::getMedianOfMediansOpenCL<inputDataType>(conf, ordering, inputDataName, observation, 1, medianStep, padding);
@@ -392,7 +410,14 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("getMax_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("max_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+            }
+        }
+        else if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+        {
+            if (ordering == SNR::DataOrdering::DMsSamples)
+            {
+                kernel = isa::OpenCL::compile("maxStdSigmaCut_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
             }
         }
         else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
@@ -440,7 +465,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         cl::NDRange global;
         cl::NDRange local;
 
-        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
@@ -480,6 +505,12 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
             kernel->setArg(0, input_d);
             kernel->setArg(1, output_d);
             kernel->setArg(2, outputIndex_d);
+        }
+        else if(kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+        {
+            kernel->setArg(0, input_d);
+            kernel->setArg(1, output_d);
+            kernel->setArg(2, outputIndex_d);
             kernel->setArg(3, stdevs_d);
         }
         else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
@@ -501,10 +532,15 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         }
         clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
         clQueues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(outputDataType), reinterpret_cast<void *>(output.data()));
-        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
             clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
         }
+        if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+        {
+            clQueues->at(clDeviceID)[0].enqueueReadBuffer(stdevs_d, CL_TRUE, 0, stdevs.size() * sizeof(outputDataType), reinterpret_cast<void *>(stdevs.data()));
+        }
+
     }
     catch (cl::Error &err)
     {
@@ -562,6 +598,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     {
         SNR::absoluteDeviation(baselines, input, absoluteDeviations_control, observation, padding);
     }
+    else if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+    {
+        SNR::stdSigmaCut(input, control, observation, padding, nSigma);
+    }
 
     for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
     {
@@ -589,6 +629,21 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                     if (outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm))
                     {
                         wrongPositions++;
+                    }
+                }
+                else if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+                {
+                    if (!isa::utils::same(output[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm], static_cast<outputDataType>(input[(beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm)]), static_cast<outputDataType>(1e-2)))
+                    {
+                        wrongSamples++;
+                    }
+                    if (outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) != maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm))
+                    {
+                        wrongPositions++;
+                    }
+                    if (!isa::utils::same(stdevs[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm], control.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs()) + dm), static_cast<outputDataType>(1e-2)))
+                    {
+                      wrongSamples_stdev++;
                     }
                 }
                 else if (kernelUnderTest == SNR::Kernel::MedianOfMedians || kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
@@ -644,6 +699,12 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                         std::cout << output[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + dm] << "," << input[(beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm)] << " ; ";
                         std::cout << outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << "," << maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << " ";
                     }
+                    else if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+                    {
+                        std::cout << output[(beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + dm] << "," << input[(beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(inputDataType))) + maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm)] << " ; ";
+                        std::cout << outputIndex.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << "," << maxSample.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << " ; ";
+                        std::cout << stdevs.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << ", " << control.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int))) + (subbandingDM * observation.getNrDMs()) + dm) << " ";
+                    }
                     else if (kernelUnderTest == SNR::Kernel::MedianOfMedians || kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
                     {
                         if (medianStep == observation.getNrSamplesPerBatch())
@@ -666,7 +727,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
                             std::cout << output.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + sample) << "," << absoluteDeviations_control.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (subbandingDM * observation.getNrDMs() * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + (dm * observation.getNrSamplesPerBatch(false, padding / sizeof(outputDataType))) + sample) << " ";
                         }
                         std::cout << std::endl;
-                    }   
+                    }
                 }
                 std::cout << std::endl;
             }
@@ -676,7 +737,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
 
     if (wrongSamples > 0)
     {
-        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max)
+        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
             std::cout << "Wrong samples: " << wrongSamples << " (" << (wrongSamples * 100.0) / static_cast<uint64_t>(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs()) << "%)." << std::endl;
         }
@@ -692,6 +753,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     else if (wrongPositions > 0)
     {
         std::cout << "Wrong positions: " << wrongPositions << " (" << (wrongPositions * 100.0) / static_cast<uint64_t>(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs()) << "%)." << std::endl;
+    }
+    else if ( wrongSamples_stdev > 0 )
+    {
+      std::cout << "Wrong StdDev samples: " << wrongSamples_stdev << " (" << (wrongSamples_stdev * 100.0) / static_cast<uint64_t>(observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs()) << "%)." << std::endl;
     }
     else
     {
