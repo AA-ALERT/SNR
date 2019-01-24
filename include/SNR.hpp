@@ -142,6 +142,132 @@ inline void snrConf::setSubbandDedispersion(bool subband)
 }
 
 template <typename DataType>
+std::string *getMaxOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
+{
+    std::string *code = 0;
+
+    if (ordering == DataOrdering::DMsSamples)
+    {
+        code = getMaxDMsSamplesOpenCL<DataType>(conf, dataName, observation, downsampling, padding);
+    }
+    return code;
+}
+
+template <typename DataType>
+std::string *getMaxDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding)
+{
+    std::string *code = new std::string();
+    unsigned int nrSamples = 0;
+    unsigned int nrDMs = 0;
+
+    if (conf.getSubbandDedispersion())
+    {
+        nrDMs = observation.getNrDMs(true) * observation.getNrDMs();
+    }
+    else
+    {
+        nrDMs = observation.getNrDMs();
+    }
+    nrSamples = observation.getNrSamplesPerBatch() / downsampling;
+    // Generate source code
+    *code = "__kernel void getMax_DMsSamples_" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict time_series, __global " + dataName + " * const restrict max_values, __global unsigned int * const restrict max_indices) {\n"
+        "<%LOCAL_VARIABLES%>"
+        "__local " + dataName + " reduction_value[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
+        "__local unsigned int reduction_index[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
+        "\n"
+        "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
+        + dataName + " value;\n"
+        "\n"
+        "<%LOCAL_COMPUTE%>"
+        "}\n"
+        "<%LOCAL_REDUCE%>"
+        "reduction_value[get_local_id(0)] = value_0;\n"
+        "reduction_index[get_local_id(0)] = index_0;\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "unsigned int threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
+        "for ( unsigned int value_id = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
+        "if ( (value_id < threshold) && (reduction_value[value_id + threshold] > value_0) ) {\n"
+        "value_0 = reduction_value[value_id + threshold];\n"
+        "reduction_value[value_id] = value_0;\n"
+        "index_0 = reduction_index[value_id + threshold];\n"
+        "reduction_index[value_id] = index_0;\n"
+        "}\n"
+        "barrier(CLK_LOCAL_MEM_FENCE);\n"
+        "}\n"
+        "if ( get_local_id(0) == 0 ) {\n"
+        "max_values[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = value_0;\n"
+        "max_indices[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = index_0;\n"
+        "}\n"
+        "}\n";
+    std::string localVariablesTemplate = dataName + " value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
+        "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n";
+    std::string localComputeNoCheckTemplate = "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
+        "if ( value > value_<%ITEM_NUMBER%> ) {\n"
+        "value_<%ITEM_NUMBER%> = value;\n"
+        "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
+        "}\n";
+    std::string localComputeCheckTemplate = "if ( value_id + <%ITEM_OFFSET%> < " + std::to_string(nrSamples) + " ) {\n"
+        "value = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + value_id + <%ITEM_OFFSET%>];\n"
+        "if ( value > value_<%ITEM_NUMBER%> ) {\n"
+        "value_<%ITEM_NUMBER%> = value;\n"
+        "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
+        "}\n"
+        "}\n";
+    std::string localReduceTemplate = "if ( value_<%ITEM_NUMBER%> > value_0 ) {\n"
+        "value_0 = value_<%ITEM_NUMBER%>;\n"
+        "index_0 = index_<%ITEM_NUMBER%>;\n"
+        "}\n";
+    std::string localVariables;
+    std::string localCompute;
+    std::string localReduce;
+    for (unsigned int item = 0; item < conf.getNrItemsD0(); item++)
+    {
+        std::string *temp;
+        std::string itemString = std::to_string(item);
+        std::string itemOffsetString = std::to_string(item * conf.getNrThreadsD0());
+        temp = isa::utils::replace(&localVariablesTemplate, "<%ITEM_NUMBER%>", itemString);
+        if (item == 0)
+        {
+            temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
+        }
+        else
+        {
+            temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
+        }
+        localVariables.append(*temp);
+        delete temp;
+        if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) == 0)
+        {
+            temp = isa::utils::replace(&localComputeNoCheckTemplate, "<%ITEM_NUMBER%>", itemString);
+        }
+        else
+        {
+            temp = isa::utils::replace(&localComputeCheckTemplate, "<%ITEM_NUMBER%>", itemString);
+        }
+        if (item == 0)
+        {
+            temp = isa::utils::replace(temp, " + <%ITEM_OFFSET%>", std::string(), true);
+        }
+        else
+        {
+            temp = isa::utils::replace(temp, "<%ITEM_OFFSET%>", itemOffsetString, true);
+        }
+        localCompute.append(*temp);
+        delete temp;
+        if (item > 0)
+        {
+            temp = isa::utils::replace(&localReduceTemplate, "<%ITEM_NUMBER%>", itemString);
+            localReduce.append(*temp);
+            delete temp;
+        }
+    }
+    code = isa::utils::replace(code, "<%LOCAL_VARIABLES%>", localVariables, true);
+    code = isa::utils::replace(code, "<%LOCAL_COMPUTE%>", localCompute, true);
+    code = isa::utils::replace(code, "<%LOCAL_REDUCE%>", localReduce, true);
+    return code;
+}
+
+template <typename DataType>
 std::string *getMaxStdSigmaCutOpenCL(const snrConf &conf, const DataOrdering ordering, const std::string &dataName, const AstroData::Observation &observation, const unsigned int downsampling, const unsigned int padding, const float nSigma)
 {
     std::string *code = 0;
@@ -182,8 +308,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
         "__local          float   reductionVAR[" + std::to_string(conf.getNrThreadsD0()) + "];\n"
         "                 float   delta = 0.0f;\n"
         "\n\n"
-
-// And 1,
         "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
         "{\n"
             + dataName + " value;\n"
@@ -222,8 +346,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
         "float mean_step1 = reductionMEA[0];\n"
         "float threshold_step2 = reductionMEA[0] + (" + std::to_string(nSigma) + " * stdev_step1);\n"
 	"barrier(CLK_LOCAL_MEM_FENCE);\n"
-
-// And 2;
         "<%LOCAL_VARIABLES_2%>"
         "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
         "{\n"
@@ -258,8 +380,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
             "stdevs[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(DataType))) + ") + get_group_id(1)] = native_sqrt(reductionVAR[0] * 1.0f/(reductionCOU[0] - 1.0f));\n"
         "}\n"
     "}\n";
-
-//And 1.
     // Variables declaration
     std::string localVariablesTemplate = dataName + " value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
         "unsigned int index_<%ITEM_NUMBER%> = get_local_id(0) + <%ITEM_OFFSET%>;\n"
@@ -301,8 +421,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
             "value_0 = value_<%ITEM_NUMBER%>;\n"
             "index_0 = index_<%ITEM_NUMBER%>;\n"
         "}\n\n";
-
-//And 2.
     // Variables declaration
     std::string localVariablesTemplate_2 = "value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
                                            "variance_<%ITEM_NUMBER%> = 0.0f;\n"
@@ -323,10 +441,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
           "delta = value - mean_<%ITEM_NUMBER%>;\n"
           "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
           "variance_<%ITEM_NUMBER%> += delta * delta;\n"
-          // "if ( value > value_<%ITEM_NUMBER%> ) {\n"
-          //     "value_<%ITEM_NUMBER%> = value;\n"
-          //     "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
-          // "}\n"
       "}\n\n";
 
     // if time_series requested range is larger than remaining values available, index check is required.
@@ -337,10 +451,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
               "delta = value - mean_<%ITEM_NUMBER%>;\n"
               "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
               "variance_<%ITEM_NUMBER%> += delta * delta;\n"
-              // "if ( value > value_<%ITEM_NUMBER%> ) {\n"
-              //     "value_<%ITEM_NUMBER%> = value;\n"
-              //     "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
-              // "}\n"
             "}\n"
         "}\n\n";
 
@@ -351,7 +461,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
           "mean_0 = (((counter_0 - counter_<%ITEM_NUMBER%>) * mean_0) + (counter_<%ITEM_NUMBER%> * mean_<%ITEM_NUMBER%>)) / counter_0;\n"
           "variance_0 += variance_<%ITEM_NUMBER%> + ((delta * delta) * (((counter_0 - counter_<%ITEM_NUMBER%>) * counter_<%ITEM_NUMBER%>) / counter_0));\n\n";
 
-    // And 1
     std::string localVariables;
     std::string localCompute;
     std::string localReduce;
@@ -451,7 +560,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
     code = isa::utils::replace(code, "<%LOCAL_COMPUTE_2%>", localCompute_2, true);
     code = isa::utils::replace(code, "<%LOCAL_REDUCE_2%>", localReduce_2, true);
 
-    // Cha cha cha
     return code;
 }
 
