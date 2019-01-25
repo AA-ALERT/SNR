@@ -351,7 +351,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
 
         "float stdev_step1 = native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f);\n"
         "float mean_step1 = reductionMEA[0];\n"
-        "float threshold_step2 = reductionMEA[0] + (" + std::to_string(nSigma) + " * stdev_step1);\n"
+        "float threshold_step2 = (" + std::to_string(nSigma) + " * stdev_step1);\n"
 	"barrier(CLK_LOCAL_MEM_FENCE);\n"
         "<%LOCAL_VARIABLES_2%>"
         "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
@@ -431,7 +431,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
     // Variables declaration
     std::string localVariablesTemplate_2 = "value_<%ITEM_NUMBER%> = time_series[(get_group_id(2) * " + std::to_string(nrDMs * isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + (get_group_id(1) * " + std::to_string(isa::utils::pad(nrSamples, padding / sizeof(DataType))) + ") + get_local_id(0) + <%ITEM_OFFSET%>];\n"
                                            "variance_<%ITEM_NUMBER%> = 0.0f;\n"
-                                           "if ( value_<%ITEM_NUMBER%> < threshold_step2 ) {\n"
+                                           "if ( fabs(value_<%ITEM_NUMBER%> - mean_step1) < threshold_step2 ) {\n"
                                                 "mean_<%ITEM_NUMBER%> = value_<%ITEM_NUMBER%>;\n"
                                                 "counter_<%ITEM_NUMBER%> = 1.0f;\n"
                                             "} else {\n"
