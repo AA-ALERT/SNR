@@ -580,13 +580,13 @@ void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> 
             {
                 // Step 1
                 isa::utils::Statistics<DataType> completeStats;
-                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch() / observation.getDownsampling(); sample++)
                 {
                     completeStats.addElement(timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample));
                 }
                 // Step 2
                 isa::utils::Statistics<DataType> sigmacutStats;
-                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch() / observation.getDownsampling(); sample++)
                 {
                     float value = timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
 
