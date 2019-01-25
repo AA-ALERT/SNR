@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
             kernel = SNR::Kernel::AbsoluteDeviation;
         }
         else{
-            std::cerr << "One switch between -snr -max -median -momad and -absolute_deviation is required." << std::endl;
+            std::cerr << "One switch between -snr -max -max_std -median -momad and -absolute_deviation is required." << std::endl;
             return 1;
         }
         if (args.getSwitch("-dms_samples"))
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
     }
     catch (std::exception &err)
     {
-        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -max_std | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform ... -opencl_device ... -padding ... -threadsD0 ... -itemsD0 ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
         std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
         std::cerr << "\t -median -median_step ..." << std::endl;
         std::cerr << "\t -momad -median_step ..." << std::endl;
