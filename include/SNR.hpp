@@ -400,7 +400,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
         "counter_<%ITEM_NUMBER%> += 1.0f;\n"
         "delta = value - mean_<%ITEM_NUMBER%>;\n"
         "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
-        "variance_<%ITEM_NUMBER%> += delta * delta;\n"
+        "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
         "if ( value > value_<%ITEM_NUMBER%> ) {\n"
             "value_<%ITEM_NUMBER%> = value;\n"
             "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
@@ -412,7 +412,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
             "counter_<%ITEM_NUMBER%> += 1.0f;\n"
             "delta = value - mean_<%ITEM_NUMBER%>;\n"
             "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
-            "variance_<%ITEM_NUMBER%> += delta * delta;\n"
+            "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
             "if ( value > value_<%ITEM_NUMBER%> ) {\n"
                 "value_<%ITEM_NUMBER%> = value;\n"
                 "index_<%ITEM_NUMBER%> = value_id + <%ITEM_OFFSET%>;\n"
@@ -447,7 +447,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
           "counter_<%ITEM_NUMBER%> += 1.0f;\n"
           "delta = value - mean_<%ITEM_NUMBER%>;\n"
           "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
-          "variance_<%ITEM_NUMBER%> += delta * delta;\n"
+          "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
       "}\n\n";
 
     // if time_series requested range is larger than remaining values available, index check is required.
@@ -457,7 +457,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
               "counter_<%ITEM_NUMBER%> += 1.0f;\n"
               "delta = value - mean_<%ITEM_NUMBER%>;\n"
               "mean_<%ITEM_NUMBER%> += delta / counter_<%ITEM_NUMBER%>;\n"
-              "variance_<%ITEM_NUMBER%> += delta * delta;\n"
+              "variance_<%ITEM_NUMBER%> += delta * (value - mean_<%ITEM_NUMBER%>);\n"
             "}\n"
         "}\n\n";
 
