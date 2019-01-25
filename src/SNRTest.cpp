@@ -142,6 +142,10 @@ int main(int argc, char *argv[])
     {
         returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
     }
+    else if ( kernel == SNR::Kernel::MaxStdSigmaCut )
+    {
+        returnCode = test(printResults, printCode, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, 0, nSigma);
+    }
 
     return returnCode;
 }
