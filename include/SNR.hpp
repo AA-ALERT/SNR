@@ -572,10 +572,10 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
 template <typename DataType>
 void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> &standardDeviations, const AstroData::Observation &observation, const unsigned int padding, const float nSigma)
 {
-    float mean = FLT_MIN;
-    float mean_step2 = FLT_MIN;
-    float stdev = FLT_MIN;
-    float temp = FLT_MIN;
+    float mean = std::numeric_limits<float>::min();
+    float mean_step2 = std::numeric_limits<float>::min();
+    float stdev = std::numeric_limits<float>::min();
+    float temp = std::numeric_limits<float>::min();
     int counter = 0;
 
     for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
@@ -585,24 +585,24 @@ void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> 
             for (unsigned int dm = 0; dm < observation.getNrDMs(); dm++)
             {
                 // Step 1
-                for (unsigned int sample = 0; sample < stepSize; sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
                     temp += timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
 
                     counter += 1;
                 }
                 mean = temp / counter;
-                temp = FLT_MIN;
+                temp = std::numeric_limits<float>::min();
 
-                for (unsigned int sample = 0; sample < stepSize; sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
-                    temp += std::powf((timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample)) - mean, 2);
+                    temp += std::pow((timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample)) - mean, 2);
                 }
 
-                stdev = std::sqrtf(temp / counter);
+                stdev = std::sqrt(temp / counter);
 
                 // Step 2
-                for (unsigned int sample = 0; sample < stepSize; sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
                     float value = timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
 
@@ -613,19 +613,19 @@ void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> 
                     }
                 }
                 mean_step2 = temp / counter;
-                temp = FLT_MIN;
+                temp = std::numeric_limits<float>::min();
 
-                for (unsigned int sample = 0; sample < stepSize; sample++)
+                for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
-                    value = timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
+                    float value = timeSeries.at((beam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + (dm * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(DataType))) + sample);
 
                     if (std::fabs(value - mean) < (nSigma*stdev))
                     {
-                      temp += std::powf(value - mean_step2, 2);
+                      temp += std::pow(value - mean_step2, 2);
                     }
                 }
 
-                standardDeviations.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm) = std::sqrtf(temp / counter);
+                standardDeviations.at((beam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(DataType))) + (subbandingDM * observation.getNrDMs()) + dm) = std::sqrt(temp / counter);
             }
         }
     }
