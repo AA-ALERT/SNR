@@ -572,10 +572,10 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
 template <typename DataType>
 void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> &standardDeviations, const AstroData::Observation &observation, const unsigned int padding, const float nSigma)
 {
-    float mean = std::numeric_limits<float>::min();
-    float mean_step2 = std::numeric_limits<float>::min();
-    float stdev = std::numeric_limits<float>::min();
-    float temp = std::numeric_limits<float>::min();
+    float mean;
+    float mean_step2;
+    float stdev;
+    float temp = 0;
     int counter = 0;
 
     for (unsigned int beam = 0; beam < observation.getNrSynthesizedBeams(); beam++)
@@ -592,7 +592,7 @@ void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> 
                     counter += 1;
                 }
                 mean = temp / counter;
-                temp = std::numeric_limits<float>::min();
+                temp = 0;
 
                 for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
@@ -613,7 +613,7 @@ void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> 
                     }
                 }
                 mean_step2 = temp / counter;
-                temp = std::numeric_limits<float>::min();
+                temp = 0;
 
                 for (unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++)
                 {
