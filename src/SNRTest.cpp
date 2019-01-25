@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
         std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
         std::cerr << "\t -median -median_step ..." << std::endl;
         std::cerr << "\t -momad -median_step ..." << std::endl;
+        std::cerr << "\t -max_std -nsigma ..." << std::endl;
         return 1;
     }
     if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::MaxStdSigmaCut || kernel == SNR::Kernel::AbsoluteDeviation)
