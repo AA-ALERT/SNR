@@ -91,7 +91,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
  ** @brief CPU version of max and standard deviation using a "sigma cut" kernel.
  */
 template <typename DataType>
-void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> &standardDeviations, const AstroData::Observation &observation, const unsigned int padding);
+void stdSigmaCut(const std::vector<DataType> &timeSeries, std::vector<DataType> &standardDeviations, const AstroData::Observation &observation, const unsigned int padding, const float nSigma);
 /**
  ** @brief Generate OpenCL code for the median of medians kernel.
  */
