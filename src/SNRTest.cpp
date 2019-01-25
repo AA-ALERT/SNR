@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     unsigned int clPlatformID = 0;
     unsigned int clDeviceID = 0;
     unsigned int stepSize = 0;
-    float nSigma = 3.0f;
+    float nSigma;
     SNR::Kernel kernel;
     SNR::DataOrdering ordering;
     AstroData::Observation observation;
