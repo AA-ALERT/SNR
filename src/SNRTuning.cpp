@@ -387,7 +387,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
                 {
-                    if (((itemsPerThread * 5) + 10) > maxItems)
+                    if (((itemsPerThread * 5) + 9) > maxItems)
                     {
                         break;
                     }
