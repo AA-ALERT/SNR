@@ -361,7 +361,7 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
     "reductionCOU[get_local_id(0)] = counter_0;\n"
     "reductionMEA[get_local_id(0)] = mean_0;\n"
     "reductionVAR[get_local_id(0)] = variance_0;\n"
-    "barrier(CLK_LOCAL_MEM_FENCE);\n\n"
+    "barrier(CLK_LOCAL_MEM_FENCE);\n"
     "threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
     "for ( unsigned int value_id = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
     "if ( (value_id < threshold)) {\n"
