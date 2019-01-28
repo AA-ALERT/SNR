@@ -98,11 +98,14 @@ int main(int argc, char *argv[])
         clPlatformID = args.getSwitchArgument<unsigned int>("-opencl_platform");
         clDeviceID = args.getSwitchArgument<unsigned int>("-opencl_device");
         padding = args.getSwitchArgument<unsigned int>("-padding");
-        nSigma = args.getSwitchArgument<float>("-nsigma");
         conf.setNrThreadsD0(args.getSwitchArgument<unsigned int>("-threadsD0"));
-        if ((kernel == SNR::Kernel::SNR) || (kernel == SNR::Kernel::Max) || (kernel == SNR::Kernel::AbsoluteDeviation))
+        if ((kernel == SNR::Kernel::SNR) || (kernel == SNR::Kernel::Max) || (kernel == SNR::Kernel::MaxStdSigmaCut) || (kernel == SNR::Kernel::AbsoluteDeviation))
         {
             conf.setNrItemsD0(args.getSwitchArgument<unsigned int>("-itemsD0"));
+        }
+        if ( kernel == SNR::Kernel::MaxStdSigmaCut )
+        {
+            nSigma = args.getSwitchArgument<float>("-nsigma");
         }
         conf.setSubbandDedispersion(args.getSwitch("-subband"));
         observation.setNrSynthesizedBeams(args.getSwitchArgument<unsigned int>("-beams"));
