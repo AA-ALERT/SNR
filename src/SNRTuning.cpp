@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
         bestMode = args.getSwitch("-best");
         padding = args.getSwitchArgument<unsigned int>("-padding");
         minThreads = args.getSwitchArgument<unsigned int>("-min_threads");
-        if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::AbsoluteDeviation)
+        if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::MaxStdSigmaCut || kernel == SNR::Kernel::AbsoluteDeviation)
         {
             maxItems = args.getSwitchArgument<unsigned int>("-max_items");
         }
