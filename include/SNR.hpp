@@ -353,7 +353,6 @@ std::string *getMaxStdSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::s
     "}\n"
     "mean_step1 = reductionMEA[0];\n"
     "threshold_step2 = (" + std::to_string(nSigma) + " * native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f));\n"
-    "barrier(CLK_LOCAL_MEM_FENCE);\n"
     "<%LOCAL_VARIABLES_2%>"
     "// Second pass through the data\n"
     "for ( unsigned int value_id = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; value_id < " + std::to_string(nrSamples) + "; value_id += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) "
