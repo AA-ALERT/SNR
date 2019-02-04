@@ -161,11 +161,8 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     uint64_t wrongSamples_stdev = 0;
 
     // Initialize OpenCL
-    cl::Context *clContext = new cl::Context();
-    std::vector<cl::Platform> *clPlatforms = new std::vector<cl::Platform>();
-    std::vector<cl::Device> *clDevices = new std::vector<cl::Device>();
-    std::vector<std::vector<cl::CommandQueue>> *clQueues = new std::vector<std::vector<cl::CommandQueue>>();
-    isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, clContext, clDevices, clQueues);
+    isa::OpenCL::OpenCLRunTime openCLRunTime;
+    isa::OpenCL::initializeOpenCL(clPlatformID, 1, openCLRunTime);
 
     // Allocate memory
     std::vector<inputDataType> input;
@@ -216,16 +213,16 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     }
     try
     {
-        input_d = cl::Buffer(*clContext, CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
-        output_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
-        stdevs_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
+        input_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
+        output_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
+        stdevs_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
         if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
-            outputIndex_d = cl::Buffer(*clContext, CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
+            outputIndex_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
         }
         if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation || kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
         {
-            baselines_d = cl::Buffer(*clContext, CL_MEM_READ_ONLY, baselines.size() * sizeof(outputDataType), 0, 0);
+            baselines_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_READ_ONLY, baselines.size() * sizeof(outputDataType), 0, 0);
         }
     }
     catch (cl::Error &err)
@@ -350,10 +347,10 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     // Copy data structures to device
     try
     {
-        clQueues->at(clDeviceID)[0].enqueueWriteBuffer(input_d, CL_FALSE, 0, input.size() * sizeof(inputDataType), reinterpret_cast<void *>(input.data()));
+        openCLRunTime.queues->at(clDeviceID)[0].enqueueWriteBuffer(input_d, CL_FALSE, 0, input.size() * sizeof(inputDataType), reinterpret_cast<void *>(input.data()));
         if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation || kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
         {
-            clQueues->at(clDeviceID)[0].enqueueWriteBuffer(baselines_d, CL_FALSE, 0, baselines.size() * sizeof(outputDataType), reinterpret_cast<void *>(baselines.data()));
+            openCLRunTime.queues->at(clDeviceID)[0].enqueueWriteBuffer(baselines_d, CL_FALSE, 0, baselines.size() * sizeof(outputDataType), reinterpret_cast<void *>(baselines.data()));
         }
     }
     catch (cl::Error &err)
@@ -407,46 +404,46 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("snrDMsSamples" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("snrDMsSamples" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
             else
             {
-                kernel = isa::OpenCL::compile("snrSamplesDMs" + std::to_string(observation.getNrDMs(true) * observation.getNrDMs()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("snrSamplesDMs" + std::to_string(observation.getNrDMs(true) * observation.getNrDMs()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
         }
         else if (kernelUnderTest == SNR::Kernel::Max)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("max_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("max_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
         }
         else if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("maxStdSigmaCut_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("maxStdSigmaCut_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
         }
         else if (kernelUnderTest == SNR::Kernel::MedianOfMedians)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("medianOfMedians_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("medianOfMedians_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
         }
         else if (kernelUnderTest == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
         }
         else if (kernelUnderTest == SNR::Kernel::AbsoluteDeviation)
         {
             if (ordering == SNR::DataOrdering::DMsSamples)
             {
-                kernel = isa::OpenCL::compile("absolute_deviation_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *clContext, clDevices->at(clDeviceID));
+                kernel = isa::OpenCL::compile("absolute_deviation_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
             }
         }
     }
@@ -543,15 +540,15 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
             kernel->setArg(1, input_d);
             kernel->setArg(2, output_d);
         }
-        clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
-        clQueues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(outputDataType), reinterpret_cast<void *>(output.data()));
+        openCLRunTime.queues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, 0);
+        openCLRunTime.queues->at(clDeviceID)[0].enqueueReadBuffer(output_d, CL_TRUE, 0, output.size() * sizeof(outputDataType), reinterpret_cast<void *>(output.data()));
         if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
-            clQueues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
+            openCLRunTime.queues->at(clDeviceID)[0].enqueueReadBuffer(outputIndex_d, CL_TRUE, 0, outputIndex.size() * sizeof(unsigned int), reinterpret_cast<void *>(outputIndex.data()));
         }
         if (kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
         {
-            clQueues->at(clDeviceID)[0].enqueueReadBuffer(stdevs_d, CL_TRUE, 0, stdevs.size() * sizeof(outputDataType), reinterpret_cast<void *>(stdevs.data()));
+            openCLRunTime.queues->at(clDeviceID)[0].enqueueReadBuffer(stdevs_d, CL_TRUE, 0, stdevs.size() * sizeof(outputDataType), reinterpret_cast<void *>(stdevs.data()));
         }
 
     }

@@ -244,10 +244,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
     cl::Event event;
 
     // Initialize OpenCL
-    cl::Context clContext;
-    std::vector<cl::Platform> *clPlatforms = new std::vector<cl::Platform>();
-    std::vector<cl::Device> *clDevices = new std::vector<cl::Device>();
-    std::vector<std::vector<cl::CommandQueue>> *clQueues = nullptr;
+    isa::OpenCL::OpenCLRunTime openCLRunTime;
 
     // Allocate memory
     std::vector<inputDataType> input;
@@ -490,30 +487,28 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
 
             if (reinitializeDeviceMemory)
             {
-                delete clQueues;
-                clQueues = new std::vector<std::vector<cl::CommandQueue>>();
-                isa::OpenCL::initializeOpenCL(clPlatformID, 1, clPlatforms, &clContext, clDevices, clQueues);
+                isa::OpenCL::initializeOpenCL(clPlatformID, 1, openCLRunTime);
                 try
                 {
                     if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
+                        initializeDeviceMemoryD(*(openCLRunTime.context), &(openCLRunTime.queues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
                     }
                     else if (kernelTuned == SNR::Kernel::MaxStdSigmaCut)
                     {
-                      initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, &stdevs_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
+                      initializeDeviceMemoryD(*(openCLRunTime.context), &(openCLRunTime.queues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, &stdevs_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
                     }
                     else if (kernelTuned == SNR::Kernel::MedianOfMedians)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
+                        initializeDeviceMemoryD(*(openCLRunTime.context), &(openCLRunTime.queues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)));
                     }
                     else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)), &baselines_d, &baselines);
+                        initializeDeviceMemoryD(*(openCLRunTime.context), &(openCLRunTime.queues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / medianStep, padding / sizeof(outputDataType)), &baselines_d, &baselines);
                     }
                     else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
                     {
-                        initializeDeviceMemoryD(clContext, &(clQueues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch(), padding / sizeof(outputDataType)), &baselines_d, &baselines);
+                        initializeDeviceMemoryD(*(openCLRunTime.context), &(openCLRunTime.queues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch(), padding / sizeof(outputDataType)), &baselines_d, &baselines);
                     }
                 }
                 catch (cl::Error &err)
@@ -528,46 +523,46 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
-                        kernel = isa::OpenCL::compile("snrDMsSamples" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("snrDMsSamples" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                     else
                     {
-                        kernel = isa::OpenCL::compile("snrSamplesDMs" + std::to_string(observation.getNrDMs(true) * observation.getNrDMs()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("snrSamplesDMs" + std::to_string(observation.getNrDMs(true) * observation.getNrDMs()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                 }
                 else if (kernelTuned == SNR::Kernel::Max)
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
-                        kernel = isa::OpenCL::compile("max_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("max_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                 }
                 else if (kernelTuned == SNR::Kernel::MaxStdSigmaCut)
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
-                        kernel = isa::OpenCL::compile("maxStdSigmaCut_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("maxStdSigmaCut_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                 }
                 else if (kernelTuned == SNR::Kernel::MedianOfMedians)
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
-                        kernel = isa::OpenCL::compile("medianOfMedians_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("medianOfMedians_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                 }
                 else if (kernelTuned == SNR::Kernel::MedianOfMediansAbsoluteDeviation)
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
-                        kernel = isa::OpenCL::compile("medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("medianOfMediansAbsoluteDeviation_DMsSamples_" + std::to_string(medianStep), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                 }
                 else if (kernelTuned == SNR::Kernel::AbsoluteDeviation)
                 {
                     if (ordering == SNR::DataOrdering::DMsSamples)
                     {
-                        kernel = isa::OpenCL::compile("absolute_deviation_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", clContext, clDevices->at(clDeviceID));
+                        kernel = isa::OpenCL::compile("absolute_deviation_DMsSamples_" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
                 }
             }
@@ -648,14 +643,14 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             try
             {
                 // Warm-up run
-                clQueues->at(clDeviceID)[0].finish();
-                clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
+                openCLRunTime.queues->at(clDeviceID)[0].finish();
+                openCLRunTime.queues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
                 event.wait();
                 // Tuning runs
                 for (unsigned int iteration = 0; iteration < nrIterations; iteration++)
                 {
                     timer.start();
-                    clQueues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
+                    openCLRunTime.queues->at(clDeviceID)[0].enqueueNDRangeKernel(*kernel, cl::NullRange, global, local, 0, &event);
                     event.wait();
                     timer.stop();
                 }
