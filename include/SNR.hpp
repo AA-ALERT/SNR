@@ -20,6 +20,7 @@
 #include <fstream>
 #include <algorithm>
 
+#include <OpenCLTypes.hpp>
 #include <Kernel.hpp>
 #include <Observation.hpp>
 #include <Platform.hpp>
