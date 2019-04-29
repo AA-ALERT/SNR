@@ -1131,7 +1131,7 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
     {
         nrDMs = observation.getNrDMs();
     }
-    *code = "__kernel void snrDMsSamples" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict input, __global float * const restrict outputSNR, __global unsigned int * const restrict outputSample) {\n"
+    *code = "__kernel void snrSigmaCutDMsSamples" + std::to_string(nrSamples) + "(__global const " + dataName + " * const restrict input, __global float * const restrict outputSNR, __global unsigned int * const restrict outputSample) {\n"
         "float delta = 0.0f;\n"
         "float mean = 0.0f;\n"
         "float sigma_threshold = 0.0f;\n"
