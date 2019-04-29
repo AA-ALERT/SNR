@@ -1196,7 +1196,7 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "reductionVAR[get_local_id(0)] = variance0;\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
         "// Reduce phase\n"
-        "unsigned int threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
+        "threshold = " + std::to_string(conf.getNrThreadsD0() / 2) + ";\n"
         "for ( unsigned int sample = get_local_id(0); threshold > 0; threshold /= 2 ) {\n"
             "if ( sample < threshold ) {\n"
                 "delta = reductionMEA[sample + threshold] - mean0;\n"
