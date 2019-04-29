@@ -63,6 +63,10 @@ int main(int argc, char *argv[])
         {
             kernel = SNR::Kernel::SNR;
         }
+        else if ( args.getSwitch("-snr_std") )
+        {
+            kernel = SNR::Kernel::SNRSigmaCut;
+        }
         else if (args.getSwitch("-max"))
         {
             kernel = SNR::Kernel::Max;
@@ -107,7 +111,7 @@ int main(int argc, char *argv[])
         bestMode = args.getSwitch("-best");
         padding = args.getSwitchArgument<unsigned int>("-padding");
         minThreads = args.getSwitchArgument<unsigned int>("-min_threads");
-        if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::MaxStdSigmaCut || kernel == SNR::Kernel::AbsoluteDeviation)
+        if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::SNRSigmaCut || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::MaxStdSigmaCut || kernel == SNR::Kernel::AbsoluteDeviation)
         {
             maxItems = args.getSwitchArgument<unsigned int>("-max_items");
         }
@@ -132,18 +136,19 @@ int main(int argc, char *argv[])
         {
             stepSize = args.getSwitchArgument<unsigned int>("-median_step");
         }
-        else if ( kernel == SNR::Kernel::MaxStdSigmaCut )
+        else if ( kernel == SNR::Kernel::SNRSigmaCut || kernel == SNR::Kernel::MaxStdSigmaCut )
         {
           nSigma = args.getSwitchArgument<unsigned int>("-nsigma");
         }
     }
     catch (isa::utils::EmptyCommandLine &err)
     {
-        std::cerr << "Usage: " << argv[0] << " [-snr | -max | -max_std | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-best] -iterations ... -opencl_platform ... -opencl_device ... -padding ... -min_threads ... -max_threads ... -max_items ... [-subband] -beams ... -dms ... -samples ..." << std::endl;
-        std::cerr << "\t -subband -subbanding_dms ..." << std::endl;
-        std::cerr << "\t -median -median_step ..." << std::endl;
-        std::cerr << "\t -momad -median_step ..." << std::endl;
-        std::cerr << "\t -max_std -nsigma ..." << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-snr | -snr_std | -max | -max_std | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-best] -iterations <int> -opencl_platform <int> -opencl_device <int> -padding <int> -min_threads <int> -max_threads <int> -max_items <int> [-subband] -beams <int> -dms <int> -samples <int>" << std::endl;
+        std::cerr << "\t -subband -subbanding_dms <int>" << std::endl;
+        std::cerr << "\t -snr_std -nsigma <int>" << std::endl;
+        std::cerr << "\t -median -median_step <int>" << std::endl;
+        std::cerr << "\t -momad -median_step <int" << std::endl;
+        std::cerr << "\t -max_std -nsigma <int>" << std::endl;
         return 1;
     }
     catch (std::exception &err)
@@ -159,7 +164,7 @@ int main(int argc, char *argv[])
     {
         returnCode = tune(bestMode, nrIterations, minThreads, maxThreads, maxItems, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, stepSize);
     }
-    else if (kernel == SNR::Kernel::MaxStdSigmaCut)
+    else if ( kernel == SNR::Kernel::SNRSigmaCut || kernel == SNR::Kernel::MaxStdSigmaCut )
     {
         returnCode = tune(bestMode, nrIterations, minThreads, maxThreads, maxItems, clPlatformID, clDeviceID, ordering, kernel, padding, observation, conf, 0, nSigma);
     }
@@ -332,7 +337,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
                 {
-                    if (((itemsPerThread * 5) + 8) > maxItems)
+                    if (((itemsPerThread * 5) + 7) > maxItems)
                     {
                         break;
                     }
@@ -359,6 +364,22 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     {
                         continue;
                     }
+                }
+            }
+            else if ( kernelTuned == SNR::Kernel::SNRSigmaCut )
+            {
+                if (((itemsPerThread * 5) + 9) > maxItems)
+                {
+                    break;
+                }
+                if ((observation.getNrSamplesPerBatch() % itemsPerThread) != 0)
+                {
+                    continue;
+                }
+                conf.setNrItemsD0(itemsPerThread);
+                if ((conf.getNrThreadsD0() * conf.getNrItemsD0()) > observation.getNrSamplesPerBatch())
+                {
+                    continue;
                 }
             }
             else if (kernelTuned == SNR::Kernel::Max)
@@ -421,6 +442,10 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             {
                 gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(outputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(unsigned int)));
             }
+            if ( kernelTuned == SNR::Kernel::SNRSigmaCut )
+            {
+                gbs = isa::utils::giga((2 * observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(outputDataType)) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(unsigned int)));
+            }
             if (kernelTuned == SNR::Kernel::MaxStdSigmaCut)
             {
                 gbs = isa::utils::giga((observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * observation.getNrSamplesPerBatch() * sizeof(inputDataType) * 2.0) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(outputDataType) * 2.0) + (observation.getNrSynthesizedBeams() * static_cast<uint64_t>(observation.getNrDMs(true) * observation.getNrDMs()) * sizeof(unsigned int)));
@@ -448,6 +473,10 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 {
                     code = SNR::getSNRSamplesDMsOpenCL<inputDataType>(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding);
                 }
+            }
+            else if ( kernelTuned == SNR::Kernel::SNRSigmaCut )
+            {
+                code = SNR::getSNRSigmaCutDMsSamplesOpenCL<inputDataType>(conf, inputDataName, observation, observation.getNrSamplesPerBatch(), padding, nSigma);
             }
             else if (kernelTuned == SNR::Kernel::Max)
             {
@@ -490,7 +519,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                 isa::OpenCL::initializeOpenCL(clPlatformID, 1, openCLRunTime);
                 try
                 {
-                    if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max)
+                    if ( kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::SNRSigmaCut || kernelTuned == SNR::Kernel::Max )
                     {
                         initializeDeviceMemoryD(*(openCLRunTime.context), &(openCLRunTime.queues->at(clDeviceID)[0]), &input, &input_d, &outputValue_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(outputDataType)), &outputSample_d, observation.getNrSynthesizedBeams() * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(unsigned int)));
                     }
@@ -529,6 +558,10 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     {
                         kernel = isa::OpenCL::compile("snrSamplesDMs" + std::to_string(observation.getNrDMs(true) * observation.getNrDMs()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                     }
+                }
+                else if ( kernelTuned == SNR::Kernel::SNRSigmaCut )
+                {
+                        kernel = isa::OpenCL::compile("snrSigmaCutDMsSamples" + std::to_string(observation.getNrSamplesPerBatch()), *code, "-cl-mad-enable -Werror", *(openCLRunTime.context), openCLRunTime.devices->at(clDeviceID));
                 }
                 else if (kernelTuned == SNR::Kernel::Max)
                 {
@@ -575,7 +608,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
             delete code;
 
             cl::NDRange global, local;
-            if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::Max || kernelTuned == SNR::Kernel::MaxStdSigmaCut)
+            if (kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::SNRSigmaCut || kernelTuned == SNR::Kernel::Max || kernelTuned == SNR::Kernel::MaxStdSigmaCut)
             {
                 if (ordering == SNR::DataOrdering::DMsSamples)
                 {
