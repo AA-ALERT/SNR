@@ -637,7 +637,7 @@ int tune(const bool bestMode, const unsigned int nrIterations, const unsigned in
                     local = cl::NDRange(conf.getNrThreadsD0(), 1, 1);
                 }
             }
-            if (kernelTuned == SNR::Kernel::SNR)
+            if ( kernelTuned == SNR::Kernel::SNR || kernelTuned == SNR::Kernel::SNRSigmaCut )
             {
                 kernel->setArg(0, input_d);
                 kernel->setArg(1, outputValue_d);
