@@ -221,7 +221,7 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
         input_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_READ_WRITE, input.size() * sizeof(inputDataType), 0, 0);
         output_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
         stdevs_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_WRITE_ONLY, output.size() * sizeof(outputDataType), 0, 0);
-        if (kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut)
+        if ( kernelUnderTest == SNR::Kernel::SNR || kernelUnderTest == SNR::Kernel::SNRSigmaCut || kernelUnderTest == SNR::Kernel::Max || kernelUnderTest == SNR::Kernel::MaxStdSigmaCut )
         {
             outputIndex_d = cl::Buffer(*(openCLRunTime.context), CL_MEM_WRITE_ONLY, outputIndex.size() * sizeof(unsigned int), 0, 0);
         }
@@ -365,8 +365,8 @@ int test(const bool printResults, const bool printCode, const unsigned int clPla
     }
 
     // Generate kernel
-    cl::Kernel *kernel;
-    std::string *code;
+    cl::Kernel * kernel = nullptr;
+    std::string * code = nullptr;
     if (kernelUnderTest == SNR::Kernel::SNR)
     {
         if (ordering == SNR::DataOrdering::DMsSamples)
