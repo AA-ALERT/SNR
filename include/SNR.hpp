@@ -159,7 +159,7 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
  ** @param nSigma The number of standard deviations difference for the sigma cut.
  */
 template<typename NumericType>
-void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation &observation, const unsigned int padding, const float nSigma);
+void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation & observation, const unsigned int padding, const float nSigma);
 // Read configuration files
 void readTunedSNRConf(tunedSNRConf &tunedSNR, const std::string &snrFilename);
 
@@ -1191,8 +1191,9 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "mean = reductionMEA[0];\n"
         "sigma_threshold = (" + std::to_string(nSigma) + " * native_sqrt(reductionVAR[0] * " + std::to_string(1.0f/(nrSamples - 1)) + "f));\n"
         "// Compute SNR with sigma cut\n"
+        "<%CLEAN%>"
         "// Compute phase\n"
-        "for ( unsigned int sample = get_local_id(0) + " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + "; sample < " + std::to_string(nrSamples) + "; sample += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
+        "for ( unsigned int sample = get_local_id(0); sample < " + std::to_string(nrSamples) + "; sample += " + std::to_string(conf.getNrThreadsD0() * conf.getNrItemsD0()) + " ) {\n"
         + dataName + " item = 0;\n"
         "<%COMPUTE_CUT%>"
         "}\n"
@@ -1213,13 +1214,7 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
                 "counter0 += reductionCOU[sample + threshold];\n"
                 "mean0 = ((reductionCOU[sample] * mean0) + (reductionCOU[sample + threshold] * reductionMEA[sample + threshold])) / counter0;\n"
                 "variance0 += reductionVAR[sample + threshold] + ((delta * delta) * ((reductionCOU[sample] * reductionCOU[sample + threshold]) / counter0));\n"
-                "if ( reductionMAX[sample + threshold] > max0 ) {\n"
-                    "max0 = reductionMAX[sample + threshold];\n"
-                    "maxSample0 = reductionSAM[sample + threshold];\n"
-                "}\n"
                 "reductionCOU[sample] = counter0;\n"
-                "reductionMAX[sample] = max0;\n"
-                "reductionSAM[sample] = maxSample0;\n"
                 "reductionMEA[sample] = mean0;\n"
                 "reductionVAR[sample] = variance0;\n"
             "}\n"
@@ -1236,6 +1231,9 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "float counter<%NUM%> = 1.0f;\n"
         "float variance<%NUM%> = 0.0f;\n"
         "float mean<%NUM%> = max<%NUM%>;\n";
+    std::string clean_sTemplate = "counter<%NUM%> = 0.0f;\n"
+        "variance<%NUM%> = 0.0f;\n"
+        "mean<%NUM%> = 0.0f;\n";
     std::string compute_sTemplate;
     if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) != 0)
     {
@@ -1283,16 +1281,17 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "maxSample0 = maxSample<%NUM%>;\n"
         "}\n";
 
-    std::string *def_s = new std::string();
-    std::string *compute_s = new std::string();
-    std::string *computeCut_s = new std::string();
-    std::string *reduce_s = new std::string();
+    std::string * def_s = new std::string();
+    std::string * compute_s = new std::string();
+    std::string * clean_s = new std::string();
+    std::string * computeCut_s = new std::string();
+    std::string * reduce_s = new std::string();
 
     for (unsigned int sample = 0; sample < conf.getNrItemsD0(); sample++)
     {
         std::string sample_s = std::to_string(sample);
         std::string offset_s = std::to_string(conf.getNrThreadsD0() * sample);
-        std::string *temp = 0;
+        std::string * temp = nullptr;
 
         temp = isa::utils::replace(&def_sTemplate, "<%NUM%>", sample_s);
         if (sample == 0)
@@ -1305,6 +1304,18 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
             temp = isa::utils::replace(temp, "<%OFFSET%>", offset_s, true);
         }
         def_s->append(*temp);
+        delete temp;
+        temp = isa::utils::replace(&clean_sTemplate, "<%NUM%>", sample_s);
+        if (sample == 0)
+        {
+            std::string empty_s("");
+            temp = isa::utils::replace(temp, " + <%OFFSET%>", empty_s, true);
+        }
+        else
+        {
+            temp = isa::utils::replace(temp, "<%OFFSET%>", offset_s, true);
+        }
+        clean_s->append(*temp);
         delete temp;
         temp = isa::utils::replace(&compute_sTemplate, "<%NUM%>", sample_s);
         if (sample == 0)
@@ -1341,17 +1352,19 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
 
     code = isa::utils::replace(code, "<%DEF%>", *def_s, true);
     code = isa::utils::replace(code, "<%COMPUTE%>", *compute_s, true);
+    code = isa::utils::replace(code, "<%CLEAN%>", *clean_s, true);
     code = isa::utils::replace(code, "<%COMPUTE_CUT%>", *computeCut_s, true);
     code = isa::utils::replace(code, "<%REDUCE%>", *reduce_s, true);
     delete def_s;
     delete compute_s;
+    delete clean_s;
     delete reduce_s;
 
     return code;
 }
 
 template<typename NumericType>
-void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<float> & snr, const AstroData::Observation &observation, const unsigned int padding, const float nSigma)
+void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation & observation, const unsigned int padding, const float nSigma)
 {
     for ( unsigned int sBeam = 0; sBeam < observation.getNrSynthesizedBeams(); sBeam++ )
     {
@@ -1377,7 +1390,7 @@ void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<float>
                     }
                 }
                 // Store results
-                snr.at((sBeam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + DM) = (cleanStatistics.getMax() - cleanStatistics.getMean()) / cleanStatistics.getStandardDeviation();
+                snr.at((sBeam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + DM) = (statistics.getMax() - cleanStatistics.getMean()) / cleanStatistics.getStandardDeviation();
             }
         }
     }
