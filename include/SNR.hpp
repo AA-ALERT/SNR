@@ -149,6 +149,17 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
  */
 template <typename T>
 std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding, const float nSigma);
+/**
+ ** @brief CPU control version of the SNR with sigma cut.
+ **
+ ** @param timeSeries The input data in DM-time order.
+ ** @param snr SNR of the highest peak per DM.
+ ** @param observation The object representing the observation.
+ ** @param padding The padding in memory.
+ ** @param nSigma The number of standard deviations difference for the sigma cut.
+ */
+template<typename NumericType>
+void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation &observation, const unsigned int padding, const float nSigma);
 // Read configuration files
 void readTunedSNRConf(tunedSNRConf &tunedSNR, const std::string &snrFilename);
 
@@ -1337,6 +1348,39 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
     delete reduce_s;
 
     return code;
+}
+
+template<typename NumericType>
+void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<float> & snr, const AstroData::Observation &observation, const unsigned int padding, const float nSigma)
+{
+    for ( unsigned int sBeam = 0; sBeam < observation.getNrSynthesizedBeams(); sBeam++ )
+    {
+        for ( unsigned int subbandingDM = 0; subbandingDM < observation.getNrDMs(true); subbandingDM++ )
+        {
+            for ( unsigned int DM = 0; DM < observation.getNrDMs(); DM++ )
+            {
+                // Phase one, compute statistics to determine sigma cut
+                isa::utils::Statistics<float> statistics;
+                for ( unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++ )
+                {
+                    statistics.addElement(timeSeries.at((sBeam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(NumericType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(NumericType))) + (DM * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(NumericType))) + sample));
+                }
+                // Phase two, compute SNR excluding outliers
+                isa::utils::Statistics<float> cleanStatistics;
+                for ( unsigned int sample = 0; sample < observation.getNrSamplesPerBatch(); sample++ )
+                {
+                    NumericType value = timeSeries.at((sBeam * observation.getNrDMs(true) * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(NumericType))) + (subbandingDM * observation.getNrDMs() * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(NumericType))) + (DM * isa::utils::pad(observation.getNrSamplesPerBatch() / observation.getDownsampling(), padding / sizeof(NumericType))) + sample);
+
+                    if ( std::fabs(value - statistics.getMean()) < (nSigma * statistics.getStandardDeviation()) )
+                    {
+                        cleanStatistics.addElement(value);
+                    }
+                }
+                // Store results
+                snr.at((sBeam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + DM) = (cleanStatistics.getMax() - cleanStatistics.getMean()) / cleanStatistics.getStandardDeviation();
+            }
+        }
+    }
 }
 
 } // SNR
