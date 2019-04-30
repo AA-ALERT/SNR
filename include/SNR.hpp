@@ -1263,10 +1263,6 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "delta = item - mean<%NUM%>;\n"
         "mean<%NUM%> += delta / counter<%NUM%>;\n"
         "variance<%NUM%> += delta * (item - mean<%NUM%>);\n"
-        "if ( item > max<%NUM%> ) {\n"
-        "max<%NUM%> = item;\n"
-        "maxSample<%NUM%> = sample + <%OFFSET%>;\n"
-        "}\n"
         "}\n";
     if ((nrSamples % (conf.getNrThreadsD0() * conf.getNrItemsD0())) != 0)
     {
