@@ -1201,8 +1201,6 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "<%REDUCE%>"
         "// Local memory store\n"
         "reductionCOU[get_local_id(0)] = counter0;\n"
-        "reductionMAX[get_local_id(0)] = max0;\n"
-        "reductionSAM[get_local_id(0)] = maxSample0;\n"
         "reductionMEA[get_local_id(0)] = mean0;\n"
         "reductionVAR[get_local_id(0)] = variance0;\n"
         "barrier(CLK_LOCAL_MEM_FENCE);\n"
