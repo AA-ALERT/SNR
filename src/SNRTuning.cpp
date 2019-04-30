@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
         {
             kernel = SNR::Kernel::SNR;
         }
-        else if ( args.getSwitch("-snr_std") )
+        else if ( args.getSwitch("-snr_sc") )
         {
             kernel = SNR::Kernel::SNRSigmaCut;
         }
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            std::cerr << "One switch between -snr -max -max_std -median -momad and -absolute_deviation is required." << std::endl;
+            std::cerr << "One switch between -snr -snr_sc -max -max_std -median -momad and -absolute_deviation is required." << std::endl;
             return 1;
         }
         if (args.getSwitch("-dms_samples"))
@@ -143,9 +143,9 @@ int main(int argc, char *argv[])
     }
     catch (isa::utils::EmptyCommandLine &err)
     {
-        std::cerr << "Usage: " << argv[0] << " [-snr | -snr_std | -max | -max_std | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-best] -iterations <int> -opencl_platform <int> -opencl_device <int> -padding <int> -min_threads <int> -max_threads <int> -max_items <int> [-subband] -beams <int> -dms <int> -samples <int>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " [-snr | -snr_sc | -max | -max_std | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-best] -iterations <int> -opencl_platform <int> -opencl_device <int> -padding <int> -min_threads <int> -max_threads <int> -max_items <int> [-subband] -beams <int> -dms <int> -samples <int>" << std::endl;
         std::cerr << "\t -subband -subbanding_dms <int>" << std::endl;
-        std::cerr << "\t -snr_std -nsigma <int>" << std::endl;
+        std::cerr << "\t -snr_sc -nsigma <int>" << std::endl;
         std::cerr << "\t -median -median_step <int>" << std::endl;
         std::cerr << "\t -momad -median_step <int" << std::endl;
         std::cerr << "\t -max_std -nsigma <int>" << std::endl;
