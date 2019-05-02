@@ -137,10 +137,10 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Usage: " << argv[0] << " [-snr | -snr_sc | -max | -max_std | -median | -momad | -absolute_deviation] [-dms_samples | -samples_dms] [-print_code] [-print_results] -opencl_platform <int> -opencl_device <int> -padding <int> -threadsD0 <int> -itemsD0 <int> [-subband] -beams <int> -dms <int> -samples <int>" << std::endl;
         std::cerr << "\t -subband -subbanding_dms <int>" << std::endl;
-        std::cerr << "\t -snr_sc -nsigma <int>" << std::endl;
+        std::cerr << "\t -snr_sc -nsigma <float>" << std::endl;
         std::cerr << "\t -median -median_step <int>" << std::endl;
         std::cerr << "\t -momad -median_step <int>" << std::endl;
-        std::cerr << "\t -max_std -nsigma <int>" << std::endl;
+        std::cerr << "\t -max_std -nsigma <float>" << std::endl;
         return 1;
     }
     if (kernel == SNR::Kernel::SNR || kernel == SNR::Kernel::Max || kernel == SNR::Kernel::MaxStdSigmaCut || kernel == SNR::Kernel::AbsoluteDeviation)
