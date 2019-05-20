@@ -146,9 +146,10 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
  ** @param nrSamples The number of samples per time series.
  ** @param padding The padding in memory.
  ** @param nSigma The number of standard deviations difference for the sigma cut.
+ ** @param correctionFactor The correction factor for the clipped standard deviation (optional).
  */
 template <typename T>
-std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding, const float nSigma);
+std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding, const float nSigma, const float correctionFactor = 1.0f);
 /**
  ** @brief CPU control version of the SNR with sigma cut.
  **
@@ -157,9 +158,10 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
  ** @param observation The object representing the observation.
  ** @param padding The padding in memory.
  ** @param nSigma The number of standard deviations difference for the sigma cut.
+ ** @param correctionFactor The correction factor for the clipped standard deviation (optional).
  */
 template<typename NumericType>
-void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation & observation, const unsigned int padding, const float nSigma);
+void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation & observation, const unsigned int padding, const float nSigma, const float correctionFactor = 1.0f);
 // Read configuration files
 void readTunedSNRConf(tunedSNRConf &tunedSNR, const std::string &snrFilename);
 
@@ -1129,7 +1131,7 @@ std::string *getSNRSamplesDMsOpenCL(const snrConf &conf, const std::string &data
 }
 
 template <typename T>
-std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding, const float nSigma)
+std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::string &dataName, const AstroData::Observation &observation, const unsigned int nrSamples, const unsigned int padding, const float nSigma, const float correctionFactor)
 {
     std::string *code = new std::string();
     unsigned int nrDMs = 0;
@@ -1220,7 +1222,7 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
         "}\n"
         "// Store\n"
         "if ( get_local_id(0) == 0 ) {\n"
-        "outputSNR[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + get_group_id(1)] = (max0 - mean0) / native_sqrt(variance0 / (counter0 - 1));\n"
+        "outputSNR[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(float))) + ") + get_group_id(1)] = (max0 - mean0) / (native_sqrt(variance0 / (counter0 - 1)) * " + std::to_string(correctionFactor) + ");\n"
         "outputSample[(get_group_id(2) * " + std::to_string(isa::utils::pad(nrDMs, padding / sizeof(unsigned int))) + ") + get_group_id(1)] = maxSample0;\n"
         "}\n"
         "}\n";
@@ -1358,7 +1360,7 @@ std::string *getSNRSigmaCutDMsSamplesOpenCL(const snrConf &conf, const std::stri
 }
 
 template<typename NumericType>
-void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation & observation, const unsigned int padding, const float nSigma)
+void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<NumericType> & snr, const AstroData::Observation & observation, const unsigned int padding, const float nSigma, const float correctionFactor)
 {
     for ( unsigned int sBeam = 0; sBeam < observation.getNrSynthesizedBeams(); sBeam++ )
     {
@@ -1384,7 +1386,7 @@ void snrSigmaCut(const std::vector<NumericType> & timeSeries, std::vector<Numeri
                     }
                 }
                 // Store results
-                snr.at((sBeam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + DM) = (statistics.getMax() - cleanStatistics.getMean()) / cleanStatistics.getStandardDeviation();
+                snr.at((sBeam * isa::utils::pad(observation.getNrDMs(true) * observation.getNrDMs(), padding / sizeof(float))) + (subbandingDM * observation.getNrDMs()) + DM) = (statistics.getMax() - cleanStatistics.getMean()) / (cleanStatistics.getStandardDeviation() * correctionFactor);
             }
         }
     }
